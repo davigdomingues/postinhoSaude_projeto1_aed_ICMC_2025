@@ -85,20 +85,29 @@ Observações de integração:
 #include "history.h" // header do histórico
 #include "io.h" // header para salvar/carregar
 #include "util.h" // header com read_line()
+#include "clear_screen.h" // header para limpar a tela
 
-// Estruturas globais
-PatientList pl; // Lista de pacientes
-Queue q; // Fila de espera
+int main(){
+    // Estruturas globais
+    PatientList pl; // Lista de pacientes
+    Queue q; // Fila de espera 
+    plist_init(&pl);
 
-int main(void) {
-    int opc = 0;
+    /*if(queue_init(&q, WAIT_CAP)!=0) { 
+        fprintf(stderr,"Erro fila.\n"); 
+        return 1; 
+    }
+
+    if(io_load(DATA_FILE, &pl, &q)==0)
+        printf("Dados carregados de %s.\n", DATA_FILE);
+    
+    else
+        printf("Iniciando sem dados prévios.\n");*/
+
+    int opc=0; 
     char buf[256];
 
-    // Inicializa lista e fila
-    plist_init(&pl);
-    queue_init(&q, WAIT_CAP);
-
-    for(;;) {
+    for(;;){
         printf("\nMenu:\n");
         printf("1. Registrar paciente\n");
         printf("2. Dar alta ao paciente\n");
@@ -115,7 +124,9 @@ int main(void) {
         
         opc = atoi(buf);
 
-        if (opc == 1) {
+        clear_screen(); // limpa a tela após a escolha
+
+        if(opc == 1){
             char id[MAX_ID_LEN + 1], name[MAX_NAME_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
