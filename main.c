@@ -93,6 +93,7 @@ int main(){
     Queue q; // Fila de espera 
     plist_init(&pl);
 
+    //Ideia de leitura de arquivo:
     /*if(queue_init(&q, WAIT_CAP)!=0) { 
         fprintf(stderr,"Erro fila.\n"); 
         return 1; 
