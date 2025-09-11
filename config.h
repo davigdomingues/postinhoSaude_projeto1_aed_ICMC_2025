@@ -29,4 +29,9 @@
        Ajuste se quiser outro caminho/nome (ex.: "dados.bin" ou ".\\data\\dados.bin") */
     #define DATA_FILE "data.bin"
 
+    /* Durations for message_and_clear (milliseconds). Minimum 3000 ms as requested. */
+    #define MSG_WAIT_SHORT 3000U
+    #define MSG_WAIT_MEDIUM 4000U
+    #define MSG_WAIT_LONG 5000U
+
 #endif
