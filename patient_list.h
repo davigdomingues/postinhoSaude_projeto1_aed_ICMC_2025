@@ -34,16 +34,19 @@
  *     (usando p->hist.top + 1 para contar entradas do histórico).
  */
 
-#ifndef PATIENT_H
-#define PATIENT_H
+#ifndef PATIENT_LIST_H
+#define PATIENT_LIST_H
+
 #include <stddef.h>
+#include <stdbool.h>
 #include "config.h"
-#include "history.h" // Necessário para o campo 'hist', associado ao histórico de procedimentos.
+#include "history.h" /* Necessário para o campo 'hist' */
 
 typedef struct {
     char id[MAX_ID_LEN + 1];
     char name[MAX_NAME_LEN + 1];
     History hist;
+    bool called; /* true se o paciente já foi chamado para atendimento */
 } Patient;
 
 typedef struct {
@@ -51,12 +54,27 @@ typedef struct {
     size_t size, cap;
 } PatientList;
 
+/* Inicialização / finalização */
 void  plist_init(PatientList *pl);
 void  plist_free(PatientList *pl);
-int   plist_find_index(const PatientList *pl, const char *id); // -1 se não achar
-Patient* plist_get(PatientList *pl, const char *id); // NULL se não achar
-int   plist_insert(PatientList *pl, const char *id, const char *name); // 0 ok, -1 dup, -2 mem
-int   plist_remove(PatientList *pl, const char *id); // 0 ok, -1 não achou
+void  plist_clear(PatientList *pl); /* mantém capacidade, limpa conteúdos */
+
+/* Capacitação */
+int   plist_reserve(PatientList *pl, size_t new_cap); /* 0 ok, -1 erro */
+int   plist_shrink_to_fit(PatientList *pl); /* reduz cap para size */
+
+/* Acesso / busca */
+int   plist_find_index(const PatientList *pl, const char *id); /* -1 se não achar */
+Patient* plist_get(PatientList *pl, const char *id); /* NULL se não achar */
+Patient* plist_get_by_index(PatientList *pl, size_t idx); /* NULL se idx inválido */
+
+/* Mutação */
+int   plist_insert(PatientList *pl, const char *id, const char *name); /* 0 ok, -1 dup, -2 mem */
+int   plist_remove(PatientList *pl, const char *id); /* 0 ok, -1 não achou */
+int   plist_update_name(PatientList *pl, const char *id, const char *new_name); /* 0 ok, -1 não achou */
+int   plist_set_called(PatientList *pl, const char *id, bool called); /* 0 ok, -1 não achou */
+
+/* Debug / impressão */
 void  plist_print(const PatientList *pl);
 
 #endif
