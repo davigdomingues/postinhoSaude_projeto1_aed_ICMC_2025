@@ -79,7 +79,7 @@ Observações de integração:
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
+#include "config.h" // header com constantes de configuração
 #include "patient_list.h" // header da lista de pacientes
 #include "queue.h" // header da fila
 #include "history.h" // header do histórico
