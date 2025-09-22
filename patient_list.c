@@ -91,7 +91,8 @@ Patient *plist_get(PatientList *pl, const char *id) {
 }
 
 Patient *plist_get_by_index(PatientList *pl, size_t idx) {
-    if (!pl || idx >= pl->size) return NULL; return &pl->data[idx];
+    if (!pl || idx >= pl->size) return NULL;
+    return &pl->data[idx];
 }
 
 int plist_insert(PatientList *pl, const char *id, const char *name) {
