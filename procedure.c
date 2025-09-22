@@ -9,19 +9,22 @@ struct procedure_ {
 };
 
 PROCEDURE *procedure_create(void) {
-    PROCEDURE *procedure = (PROCEDURE *) malloc(sizeof(PROCEDURE));
+    PROCEDURE *procedure = malloc(sizeof(PROCEDURE));
 
-    if(procedure != NULL) {
-        procedure->str = (char *) malloc((PROC_MAX_LEN + 1) * sizeof(char));
+    if (procedure != NULL) {
+        procedure->str = malloc((PROC_MAX_LEN + 1) * sizeof(char));
+        if (procedure->str == NULL) {
+            // malloc falhou, libera-se procedure e se retornaS NULL
+            free(procedure);
+            return NULL;
+        }
 
-        if (procedure->str != NULL) {
-            if (fgets(procedure->str, PROC_MAX_LEN + 1, stdin) != NULL) {
-                size_t len = strlen(procedure->str);
-                if (len > 0 && procedure->str[len-1] == '\n')
-                    procedure->str[len-1] = '\0';
-            } else {
-                procedure->str[0] = '\0';
-            }
+        if (fgets(procedure->str, PROC_MAX_LEN + 1, stdin) != NULL) {
+            size_t len = strlen(procedure->str);
+            if (len > 0 && procedure->str[len-1] == '\n')
+                procedure->str[len-1] = '\0';
+        } else {
+            procedure->str[0] = '\0';
         }
     }
     return procedure;
