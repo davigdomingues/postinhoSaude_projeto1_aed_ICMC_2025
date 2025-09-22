@@ -113,7 +113,9 @@ int plist_remove(PatientList *pl, const char *id) {
     int idx = plist_find_index(pl, id);
     if (idx < 0) return -1;
     history_free(&pl->data[idx].hist);
-    pl->data[idx] = pl->data[pl->size - 1]; pl->size--; return 0;
+    pl->data[idx] = pl->data[pl->size - 1];
+    pl->size--;
+    return 0;
 }
 
 int plist_update_name(PatientList *pl, const char *id, const char *new_name) {
