@@ -137,7 +137,11 @@ int main(){
                 printf("Nome: "); read_line(name, sizeof(name));
                 int r = plist_insert(&pl, id, name);
                 if (r == 0) printf("Paciente cadastrado.\n");
-                else { printf("Falha ao cadastrar.\n"); message_and_clear("Falha ao cadastrar. Retornando ao menu...", MSG_WAIT_SHORT); continue; }
+                else {
+                    printf("Falha ao cadastrar.\n");
+                    message_and_clear("Falha ao cadastrar. Retornando ao menu...", MSG_WAIT_SHORT);
+                    continue;
+                }
             }
 
             if (queue_is_full(&q))
