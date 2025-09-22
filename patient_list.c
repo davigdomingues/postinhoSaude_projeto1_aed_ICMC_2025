@@ -87,7 +87,8 @@ int plist_find_index(const PatientList *pl, const char *id) {
 }
 
 Patient *plist_get(PatientList *pl, const char *id) {
-    int idx = plist_find_index(pl, id); return idx < 0 ? NULL : &pl->data[idx];
+    int idx = plist_find_index(pl, id);
+    return idx < 0 ? NULL : &pl->data[idx];
 }
 
 Patient *plist_get_by_index(PatientList *pl, size_t idx) {
