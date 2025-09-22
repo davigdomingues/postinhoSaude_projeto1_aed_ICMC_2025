@@ -123,7 +123,8 @@ int plist_update_name(PatientList *pl, const char *id, const char *new_name) {
 int plist_set_called(PatientList *pl, const char *id, bool called) {
     if (!pl || !id) return -1;
     Patient *p = plist_get(pl, id); if (!p) return -1;
-    p->called = called; return 0;
+    p->called = called;
+    return 0;
 }
 
 void plist_print(const PatientList *pl) {
