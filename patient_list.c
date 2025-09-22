@@ -79,7 +79,10 @@ int plist_shrink_to_fit(PatientList *pl) {
 
 int plist_find_index(const PatientList *pl, const char *id) {
     if (!pl || !id) return -1;
-    for (size_t i = 0; i < pl->size; ++i) if (strcmp(pl->data[i].id, id) == 0) return (int)i;
+    for (size_t i = 0; i < pl->size; ++i) {
+        if (strcmp(pl->data[i].id, id) == 0)
+            return (int)i;
+    }
     return -1;
 }
 
