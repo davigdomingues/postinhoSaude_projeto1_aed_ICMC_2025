@@ -57,7 +57,7 @@ bool SAVE(LISTA *lista, FILA *fila) {
 }
 
 bool LOAD(LISTA **lista, FILA **fila) {
-    if(!*lista || !*fila) 
+    if(!lista || !fila || !*lista || !*fila) 
         return false;
 
     int chave; // Variável auxiliar
