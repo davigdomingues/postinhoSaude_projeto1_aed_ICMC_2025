@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+const char *LISTA_FILENAME = "lista_itens.bin";
+const char *FILA_FILENAME = "fila_itens.bin";
+
 bool SAVE(LISTA *lista, FILA *fila) {
     if(!lista || !fila) 
         return false;
@@ -10,7 +13,7 @@ bool SAVE(LISTA *lista, FILA *fila) {
 
     // Salvando os itens da lista
 
-    FILE *fp_lista = fopen("lista_itens.bin", "wb");
+    FILE *fp_lista = fopen(LISTA_FILENAME, "wb");
     if(!fp_lista)
         return false;
 
@@ -30,8 +33,7 @@ bool SAVE(LISTA *lista, FILA *fila) {
     fclose(fp_lista); fp_lista = NULL;
 
     // Salvando os itens da fila
-
-    FILE *fp_fila = fopen("fila_itens.bin", "wb");
+    FILE *fp_fila = fopen(FILA_FILENAME, "wb");
     if(!fp_fila)
         return false;
 
@@ -59,8 +61,7 @@ bool LOAD(LISTA **lista, FILA **fila) {
     int chave; // Variável auxiliar
 
     // Carregando os itens do arquivo na lista
-
-    FILE *fp_lista = fopen("lista_itens.bin", "rb");
+    FILE *fp_lista = fopen(LISTA_FILENAME, "rb");
     if(!fp_lista)
         return false;
 
@@ -72,8 +73,7 @@ bool LOAD(LISTA **lista, FILA **fila) {
     fclose(fp_lista); // Libera memória
 
     // Carregando os itens do arquivo na fila
-
-    FILE *fp_fila = fopen("fila_itens.bin", "rb");
+    FILE *fp_fila = fopen(FILA_FILENAME, "rb");
     if(!fp_fila)
         return false;
 
