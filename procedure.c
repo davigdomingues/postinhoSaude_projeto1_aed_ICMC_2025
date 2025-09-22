@@ -14,7 +14,7 @@ PROCEDURE *procedure_create(void) {
     if (procedure != NULL) {
         procedure->str = malloc((PROC_MAX_LEN + 1) * sizeof(char));
         if (procedure->str == NULL) {
-            // malloc falhou, libera-se procedure e se retornaS NULL
+            // malloc falhou, libera-se procedure e se retorna NULL
             free(procedure);
             return NULL;
         }
