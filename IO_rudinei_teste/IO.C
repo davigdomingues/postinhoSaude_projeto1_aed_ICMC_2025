@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-const char *LISTA_FILENAME = "lista_itens.bin";
-const char *FILA_FILENAME = "fila_itens.bin";
+#define LISTA_FILENAME "lista_itens.bin"
+#define FILA_FILENAME "fila_itens.bin"
 
 bool SAVE(LISTA *lista, FILA *fila) {
     if(!lista || !fila) 
