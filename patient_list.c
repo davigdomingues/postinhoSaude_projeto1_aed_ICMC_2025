@@ -118,7 +118,8 @@ int plist_remove(PatientList *pl, const char *id) {
 
 int plist_update_name(PatientList *pl, const char *id, const char *new_name) {
     if (!pl || !id || !new_name) return -1;
-    Patient *p = plist_get(pl, id); if (!p) return -1;
+    Patient *p = plist_get(pl, id);
+    if (!p) return -1;
     strncpy(p->name, new_name, MAX_NAME_LEN);
     p->name[MAX_NAME_LEN] = '\0';
     return 0;
