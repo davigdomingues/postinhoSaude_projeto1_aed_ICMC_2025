@@ -47,7 +47,11 @@ void message_and_clear(const char *message, unsigned int milliseconds) {
 #else
     /* usleep recebe microsegundos em POSIX */
     /* Multiplicamos por 1000 para converter ms -> us */
-    usleep((useconds_t)milliseconds * 1000u);
+    /* Evita overflow: useconds_t normalmente é uint32_t, máximo 4294967295 */
+    /* Portanto, o maior valor seguro para milliseconds é 4294967295 / 1000 = 4294967 */
+    const unsigned int MAX_SAFE_MILLISECONDS = 4294967295u / 1000u;
+    unsigned int safe_ms = milliseconds > MAX_SAFE_MILLISECONDS ? MAX_SAFE_MILLISECONDS : milliseconds;
+    usleep((useconds_t)safe_ms * 1000u);
 #endif
     /* Após a pausa, limpa a tela para voltar ao menu principal */
     clear_screen();
