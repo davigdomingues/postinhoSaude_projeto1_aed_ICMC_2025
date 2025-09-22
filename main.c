@@ -174,6 +174,11 @@ int main(){
             Patient *p = plist_get(&pl, id);
 
             if (p == NULL) {
+                printf("Erro interno: paciente não encontrado.\n");
+                message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                continue;
+            }
+            if (p == NULL) {
                 printf("Paciente não encontrado (erro interno).\n");
                 message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
