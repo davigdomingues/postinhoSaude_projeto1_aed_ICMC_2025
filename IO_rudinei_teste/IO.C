@@ -34,8 +34,10 @@ bool SAVE(LISTA *lista, FILA *fila) {
 
     // Salvando os itens da fila
     FILE *fp_fila = fopen(FILA_FILENAME, "wb");
-    if(!fp_fila)
+    if(!fp_fila) {
+        fprintf(stderr, "Erro parcial: lista salva e destruída, mas houve falha ao abrir o arquivo da fila '%s' para escrita.\n", FILA_FILENAME);
         return false;
+    }
 
     it = FILA_remover(fila);
     while(it != NULL) { // Se mantém no while enquanto a fila não estiver vazia
