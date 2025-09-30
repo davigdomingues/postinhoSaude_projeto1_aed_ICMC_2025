@@ -4,6 +4,11 @@
 #include "history.h"
 #include "config.h"
 
+struct History {
+    char items[HIST_MAX][PROC_MAX_LEN + 1];
+    int top;
+};
+
 void history_init(History *h) {
     if (!h) return;
     h->top = -1;
@@ -15,7 +20,7 @@ void history_free(History *h) {
 
 int history_push(History *h, const char *proc) {
     if (!h || !proc) return -1;
-    if (h->top >= HIST_MAX - 1) return -1; 
+    if (h->top >= HIST_MAX - 1) return -1;
     h->top++;
     strncpy(h->items[h->top], proc, PROC_MAX_LEN);
     h->items[h->top][PROC_MAX_LEN] = '\0';
@@ -24,7 +29,7 @@ int history_push(History *h, const char *proc) {
 
 int history_pop(History *h, char *out, size_t out_size) {
     if (!h || !out || out_size == 0) return -1;
-    if (h->top < 0) return -1; 
+    if (h->top < 0) return -1;
     strncpy(out, h->items[h->top], out_size - 1);
     out[out_size - 1] = '\0';
     h->items[h->top][0] = '\0';

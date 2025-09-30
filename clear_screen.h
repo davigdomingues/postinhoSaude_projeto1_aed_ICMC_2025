@@ -10,4 +10,4 @@ void clear_screen(void);
  */
 void message_and_clear(const char *message, unsigned int milliseconds);
 
-#endif 
+#endif

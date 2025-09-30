@@ -5,10 +5,7 @@
 #include <stddef.h>
 #include "config.h"
 
-typedef struct {
-    char items[HIST_MAX][PROC_MAX_LEN + 1];
-    int top;
-} History;
+typedef struct History History;
 
 void history_init(History *h);
 void history_free(History *h);

@@ -31,8 +31,7 @@
 
 
 static void chomp(char *s) {
-    if (!s)
-        return;
+    if (!s) return;
 
     size_t n = strlen(s);
 
@@ -43,33 +42,42 @@ static void chomp(char *s) {
 
 int io_save(const char *path, const PatientList *pl, const Queue *q) {
     FILE *f = fopen(path, "w");
-    if (!f)
-        return -1;
+    if (!f) return -1;
 
-    fprintf(f, "%zu\n", pl->size);
+    size_t n_pat = plist_size(pl);
+    fprintf(f, "%zu\n", n_pat);
 
-    for (size_t i = 0; i < pl->size; ++i) {
-        const Patient *p = &pl->data[i];
+    for (size_t i = 0; i < n_pat; ++i) {
+        char id[MAX_ID_LEN + 2];
+        char name[MAX_NAME_LEN + 2];
+        if (plist_get_id_by_index(pl, i, id, sizeof(id)) != 0) { fclose(f); return -1; }
+        if (plist_get_name_by_index(pl, i, name, sizeof(name)) != 0) { fclose(f); return -1; }
 
-        fprintf(f, "%s\n", p->id);
-        fprintf(f, "%s\n", p->name);
-        fprintf(f, "%d\n", p->hist.top + 1);
+        fprintf(f, "%s\n%s\n", id, name);
 
-        for (int k = 0; k <= p->hist.top; ++k)
-            fprintf(f, "%s\n", p->hist.items[k]);
+        int n_hist = plist_history_size_by_index(pl, i);
+        fprintf(f, "%d\n", n_hist);
+        for (int k = 0; k < n_hist; ++k) {
+            char line[PROC_MAX_LEN + 2];
+            if (plist_history_get_by_index(pl, i, k, line, sizeof(line)) != 0) { fclose(f); return -1; }
+            fprintf(f, "%s\n", line);
+        }
 
-        fprintf(f, "%d\n", p->called ? 1 : 0);
+        int called = plist_is_called(pl, id);
+        fprintf(f, "%d\n", called ? 1 : 0);
     }
 
-    fprintf(f, "%d\n", q->size);
-
-    for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
-        fprintf(f, "%s\n", q->ids[idx]);
+    int qsize = queue_size(q);
+    fprintf(f, "%d\n", qsize);
+    for (int i = 0; i < qsize; ++i) {
+        char id[MAX_ID_LEN + 2];
+        if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
+        fprintf(f, "%s\n", id);
+    }
 
     fclose(f);
     return 0;
 }
-
 
 int io_load(const char *path, PatientList *pl, Queue *q) {
     FILE *f = fopen(path, "r");
@@ -113,8 +121,6 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
             return -2;
         }
 
-        Patient *p = plist_get(pl, id);
-
         for (int k = 0; k < n_hist; ++k) {
             if (!fgets(line, sizeof(line), f)) {
                 fclose(f);
@@ -122,7 +128,10 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
             }
 
             chomp(line);
-            history_push(&p->hist, line);
+            /* usar wrapper para adicionar histórico */
+            if (plist_history_push(pl, id, line) != 0) {
+                /* falha ao inserir histórico -> ignoramos item e continuamos */
+            }
         }
 
         int called_flag = 0;
@@ -132,7 +141,7 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
             return -2;
         }
 
-        p->called = called_flag ? true : false;
+        plist_set_called(pl, id, called_flag ? true : false);
     }
 
     int m = 0;
@@ -151,10 +160,7 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
         }
 
         chomp(id);
-
-        if (queue_enqueue(q, id) != 0) {
-            /* ignora overflow */
-        }
+        (void)queue_enqueue(q, id); /* ignora overflow */
     }
 
     fclose(f);

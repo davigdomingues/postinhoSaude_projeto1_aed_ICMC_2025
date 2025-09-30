@@ -40,41 +40,40 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "config.h"
-#include "history.h" /* Necessário para o campo 'hist' */
+#include "history.h" /* Necessário para o tipo opaco */
 
-typedef struct {
-    char id[MAX_ID_LEN + 1];
-    char name[MAX_NAME_LEN + 1];
-    History hist;
-    bool called; /* true se o paciente já foi chamado para atendimento */
-} Patient;
+typedef struct Patient Patient;
+typedef struct PatientList PatientList;
 
-typedef struct {
-    Patient *data;
-    size_t size, cap;
-} PatientList;
 
-/* Inicialização / finalização */
-void  plist_init(PatientList *pl);
-void  plist_free(PatientList *pl);
-void  plist_clear(PatientList *pl); /* mantém capacidade, limpa conteúdos */
-
-/* Capacitação */
-int   plist_reserve(PatientList *pl, size_t new_cap); /* 0 ok, -1 erro */
-int   plist_shrink_to_fit(PatientList *pl); /* reduz cap para size */
+/* Criar / destruir (alocam o TAD opaco) */
+PatientList* plist_create(void);
+void         plist_destroy(PatientList *pl);
 
 /* Acesso / busca */
 int   plist_find_index(const PatientList *pl, const char *id); /* -1 se não achar */
-Patient* plist_get(PatientList *pl, const char *id); /* NULL se não achar */
-Patient* plist_get_by_index(PatientList *pl, size_t idx); /* NULL se idx inválido */
+
+/* Accessors seguros (evitam expor campos internos) */
+size_t plist_size(const PatientList *pl);
+int    plist_get_id_by_index(const PatientList *pl, size_t idx, char *out, size_t out_size);
+int    plist_get_name_by_index(const PatientList *pl, size_t idx, char *out, size_t out_size);
+int    plist_get_name_by_id(const PatientList *pl, const char *id, char *out, size_t out_size);
+int    plist_is_called(const PatientList *pl, const char *id);
 
 /* Mutação */
 int   plist_insert(PatientList *pl, const char *id, const char *name); /* 0 ok, -1 dup, -2 mem */
 int   plist_remove(PatientList *pl, const char *id); /* 0 ok, -1 não achou */
-int   plist_update_name(PatientList *pl, const char *id, const char *new_name); /* 0 ok, -1 não achou */
 int   plist_set_called(PatientList *pl, const char *id, bool called); /* 0 ok, -1 não achou */
 
-/* Debug / impressão */
-void  plist_print(const PatientList *pl);
+/* Histórico: wrappers que manipulam o histórico por id/índice (evita expor History) */
+int plist_history_is_full(const PatientList *pl, const char *id);
+int plist_history_push(PatientList *pl, const char *id, const char *proc);
+int plist_history_pop(PatientList *pl, const char *id, char *out, size_t out_size);
+int plist_history_size_by_id(const PatientList *pl, const char *id);
+int plist_history_get_by_id(const PatientList *pl, const char *id, int hist_idx, char *out, size_t out_size);
+
+/* Histórico por índice do paciente (usado por io.c para serialização) */
+int plist_history_size_by_index(const PatientList *pl, size_t patient_idx);
+int plist_history_get_by_index(const PatientList *pl, size_t patient_idx, int hist_idx, char *out, size_t out_size);
 
 #endif

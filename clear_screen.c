@@ -34,9 +34,8 @@ void clear_screen(void) {
  * - Cuidado com valores muito grandes para 'milliseconds' (pode causar overflow ao multiplicar).
  */
 void message_and_clear(const char *message, unsigned int milliseconds) {
-    if (message && message[0] != '\0') {
+    if (message && message[0] != '\0')
         printf("%s\n", message);
-    }
 
     /* Garante que a saída foi enviada ao terminal antes de dormir */
     fflush(stdout);

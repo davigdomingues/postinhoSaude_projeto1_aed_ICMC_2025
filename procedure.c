@@ -23,8 +23,8 @@ PROCEDURE *procedure_create(void) {
 
     if (fgets(procedure->str, PROC_MAX_LEN + 1, stdin) != NULL) {
         size_t len = strlen(procedure->str);
-        if (len > 0 && procedure->str[len-1] == '\n')
-            procedure->str[len-1] = '\0';
+        if (len > 0 && procedure->str[len - 1] == '\n')
+            procedure->str[len - 1] = '\0';
     } else {
         procedure->str[0] = '\0';
     }
