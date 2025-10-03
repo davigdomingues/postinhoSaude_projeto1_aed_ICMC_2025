@@ -57,7 +57,7 @@ int queue_contains(const Queue *q, const char *id) {
 
 void queue_print(const Queue *q) {
     if (!q) return;
-    printf("Fila (size=%d):\n", q->size);
+    printf("Fila de espera (size = %d):\n", q->size);
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
         printf("%d: %s\n", i + 1, q->ids[idx]);
 }

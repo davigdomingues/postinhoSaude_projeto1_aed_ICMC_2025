@@ -123,10 +123,12 @@ int plist_remove(PatientList *pl, const char *id) {
 
     int idx = plist_find_index(pl, id);
     
-    if (idx < 0) 
+    if (idx < 0) {
         return -1;
-    
-        history_free(&pl->data[idx].hist);
+    }
+
+    /* remover histórico do paciente a ser excluído e substituir pelo último elemento */
+    history_free(&pl->data[idx].hist);
     pl->data[idx] = pl->data[pl->size - 1];
     pl->size--;
     
@@ -150,7 +152,8 @@ void plist_print(const PatientList *pl) {
     if (!pl) 
         return;
 
-    printf("Pacientes registrados: %zu\n", pl->size);
+    /* imprimir size_t de forma portável usando unsigned long cast */
+    printf("Pacientes registrados: %lu\n", (unsigned long)pl->size);
 
     if (pl->size == 0) { 
         printf("Nenhum paciente registrado.\n"); 

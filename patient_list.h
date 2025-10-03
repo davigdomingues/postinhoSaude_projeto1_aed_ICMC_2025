@@ -75,4 +75,7 @@ int plist_history_get_by_id(const PatientList *pl, const char *id, int hist_idx,
 int plist_history_size_by_index(const PatientList *pl, size_t patient_idx);
 int plist_history_get_by_index(const PatientList *pl, size_t patient_idx, int hist_idx, char *out, size_t out_size);
 
+/* Impressão */
+void plist_print(const PatientList *pl);
+
 #endif

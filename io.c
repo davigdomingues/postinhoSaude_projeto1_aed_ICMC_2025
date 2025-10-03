@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "io.h"
 #include "config.h"
 
@@ -40,11 +41,14 @@ static void chomp(char *s) {
 }
 
 int io_save(const char *path, const PatientList *pl, const Queue *q) {
-    FILE *f = fopen(path, "w");
+    /* grava para ficheiro temporário e substitui apenas em sucesso */
+    char tmp[512];
+    if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) < 0) return -1;
+    FILE *f = fopen(tmp, "w");
     if (!f) return -1;
 
     size_t n_pat = plist_size(pl);
-    fprintf(f, "%zu\n", n_pat);
+    fprintf(f, "%lu\n", (unsigned long)n_pat);
 
     for (size_t i = 0; i < n_pat; ++i) {
         char id[MAX_ID_LEN + 2];
@@ -74,7 +78,21 @@ int io_save(const char *path, const PatientList *pl, const Queue *q) {
         fprintf(f, "%s\n", id);
     }
 
-    fclose(f);
+    /* fechar e garantir que foi gravado */
+    if (fclose(f) != 0) {
+        /* apagar tmp se falha no fclose */
+        remove(tmp);
+        return -1;
+    }
+
+    /* substituir o ficheiro alvo: remove antigo (ignorar se não existir), depois renomeia */
+    (void)remove(path); /* ignorar erro, pode ser que não exista */
+    if (rename(tmp, path) != 0) {
+        /* tentativa de limpeza */
+        remove(tmp);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -84,11 +102,15 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
         return -1;
 
     size_t n_pat = 0;
+    unsigned long n_pat_ul = 0;
 
-    if (fscanf(f, "%zu\n", &n_pat) != 1) {
+    /* ler como unsigned long e converter para size_t para evitar uso de %zu no fscanf */
+    if (fscanf(f, "%lu\n", &n_pat_ul) != 1) {
         fclose(f);
         return -2;
     }
+    
+    n_pat = (size_t)n_pat_ul;
 
     for (size_t i = 0; i < n_pat; ++i) {
         char id[MAX_ID_LEN + 2];

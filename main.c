@@ -102,6 +102,64 @@ static void show_menu(void) {
     printf("Escolha: ");
 }
 
+static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
+    /* Tentar carregar dados persistidos (se existir) */
+    if (load_r == 0) {
+        /* Mostrar resumidamente o estado carregado para o utilizador antes de limpar */
+        printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
+
+        if (plist_size(pl) > 0) {
+            plist_print(pl);
+
+            /* Mostrar histórico detalhado de cada paciente */
+            for (size_t pi = 0; pi < plist_size(pl); ++pi) {
+                char pid[MAX_ID_LEN + 1];
+                char pname[MAX_NAME_LEN + 1];
+                if (plist_get_id_by_index(pl, pi, pid, sizeof(pid)) != 0) continue;
+                if (plist_get_name_by_index(pl, pi, pname, sizeof(pname)) != 0) strncpy(pname, "(desconhecido)", sizeof(pname));
+
+                int hsz = plist_history_size_by_index(pl, pi);
+                printf("\nHistórico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
+                for (int hi = 0; hi < hsz; ++hi) {
+                    char hline[PROC_MAX_LEN + 1];
+                    if (plist_history_get_by_index(pl, pi, hi, hline, sizeof(hline)) == 0)
+                        printf("  %d) %s\n", hi + 1, hline);
+                }
+            }
+        } else {
+            printf("Nenhum paciente registrado.\n");
+        }
+
+        printf("\n");
+
+        if (queue_size(q) > 0) {
+            queue_print(q);
+        } else {
+            printf("\nFila de espera vazia.\n");
+        }
+
+        /* Em vez de limpar automaticamente, aguarda que o utilizador pressione Enter
+           para garantir que as impressões permaneçam visíveis. */
+        {
+            char __tmp_wait[8];
+            printf("\nPressione Enter para continuar...");
+            fflush(stdout);
+            read_line(__tmp_wait, sizeof(__tmp_wait));
+            clear_screen();
+        }
+    } else if (load_r == -1) {
+        /* arquivo inexistente: iniciar com estruturas vazias (normal em primeira execução) */
+        printf("Nenhum arquivo de dados encontrado. Iniciando com banco vazio.\n");
+        message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
+    } else {
+        printf("Erro ao carregar dados (formato/IO). Iniciando com banco vazio.\n");
+        message_and_clear("Erro ao carregar dados. Iniciando com banco vazio.", MSG_WAIT_SHORT);
+    }
+
+    /* Mensagem de boas-vindas simples (sem limpar novamente imediatamente) */
+    printf("Bem-vindo ao PostinhoSUS — Sistema de Gestão (Projeto AED, ICMC 2025).\n");
+}
+
 int main(){
     PatientList *pl = plist_create();
     Queue       *q  = queue_create(WAIT_CAP);
@@ -111,8 +169,8 @@ int main(){
         return 1;
     }
 
-    clear_screen();
-    message_and_clear("Bem-vindo ao PostinhoSUS — Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_MEDIUM);
+    int load_r = io_load(DATA_FILE, pl, q);
+    show_archive_data(pl, q, load_r);
 
     int opc = 0;
     char buf[256];
@@ -388,12 +446,19 @@ int main(){
             message_and_clear("Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 8) {
-            if (io_save(DATA_FILE, pl, q) == 0)
-                printf("Dados salvos em %s. Até breve!\n", DATA_FILE);
-            else
-                printf("Erro ao salvar dados.\n");
-
-            break;
+            /* Só salva se houver dados carregados ou se existirem entradas geradas */
+            size_t n_pat = plist_size(pl);
+            int qsize = queue_size(q);
+            if (n_pat > 0 || qsize > 0 || load_r == 0) {
+                if (io_save(DATA_FILE, pl, q) == 0)
+                    printf("Dados salvos em %s. Até breve!\n", DATA_FILE);
+                else
+                    printf("Erro ao salvar dados.\n");
+            } else {
+                printf("Nenhum dado para salvar. Arquivo não foi alterado.\n");
+            }
+ 
+             break;
         } else {
             printf("Opção inválida.\n");
             message_and_clear("Opção inválida. Retornando ao menu...", MSG_WAIT_SHORT);
