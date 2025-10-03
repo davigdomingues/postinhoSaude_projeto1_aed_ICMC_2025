@@ -286,10 +286,26 @@ int main(){
 
             /* montar item com timestamp seguro e truncado para PROC_MAX_LEN */
             char item[PROC_MAX_LEN + 1];
-            if (timestr[0] != '\0')
-                snprintf(item, sizeof(item), "[%s] %s", timestr, proc);
-            else
-                snprintf(item, sizeof(item), "%s", proc); /* sem timestamp se falhar */
+            item[0] = '\0';
+            if (timestr[0] != '\0') {
+                /* escreve somente o prefixo "[timestr] " e depois concatena o proc
+                   limitando a cópia ao espaço restante para evitar warnings do compilador */
+                int pref = snprintf(item, sizeof(item), "[%s] ", timestr);
+                if (pref < 0) pref = 0;
+                size_t used = (size_t)pref;
+                if (used >= sizeof(item)) {
+                    /* já cheio; garante terminação */
+                    item[sizeof(item) - 1] = '\0';
+                } else {
+                    size_t avail = sizeof(item) - used - 1; /* espaço restante para chars + '\0' */
+                    /* strncat usa o espaço disponível; garante terminação */
+                    strncat(item, proc, avail);
+                }
+            } else {
+                /* sem timestamp: copia procedure com segurança */
+                strncpy(item, proc, sizeof(item) - 1);
+                item[sizeof(item) - 1] = '\0';
+            }
 
             if (plist_history_push(pl, id, item) == 0)
                 printf("Procedimento adicionado.\n");

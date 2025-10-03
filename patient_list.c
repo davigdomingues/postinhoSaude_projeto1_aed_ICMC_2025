@@ -295,3 +295,21 @@ int plist_history_size_by_index(const PatientList *pl, size_t patient_idx) {
 
     return history_size(&pl->data[patient_idx].hist);
 }
+
+/* Novamente: obter entrada do histórico por índice do paciente.
+   Retorna 0 em sucesso, -1 em erro (índices inválidos / ponteiros nulos). */
+int plist_history_get_by_index(const PatientList *pl, size_t patient_idx, int hist_idx, char *out, size_t out_size) {
+    if (!pl || !out || out_size == 0) 
+        return -1;
+
+    if (patient_idx >= pl->size) 
+        return -1;
+
+    if (hist_idx < 0 || hist_idx > pl->data[patient_idx].hist.top) 
+        return -1;
+
+    strncpy(out, pl->data[patient_idx].hist.items[hist_idx], out_size - 1);
+    out[out_size - 1] = '\0';
+    
+    return 0;
+}
