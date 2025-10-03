@@ -39,7 +39,6 @@ static void chomp(char *s) {
         s[--n] = '\0';
 }
 
-
 int io_save(const char *path, const PatientList *pl, const Queue *q) {
     FILE *f = fopen(path, "w");
     if (!f) return -1;

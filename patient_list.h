@@ -45,7 +45,6 @@
 typedef struct Patient Patient;
 typedef struct PatientList PatientList;
 
-
 /* Criar / destruir (alocam o TAD opaco) */
 PatientList* plist_create(void);
 void         plist_destroy(PatientList *pl);
