@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 static int last_truncated = 0;
 
@@ -37,4 +38,30 @@ void read_line(char *buf, size_t size) {
 
 int read_line_truncated(void) {
     return last_truncated;
+}
+
+/* Formata timestamp local em out. Retorna 0 em sucesso, -1 em erro */
+int format_timestamp(char *out, size_t out_size) {
+    if (!out || out_size == 0) return -1;
+    out[0] = '\0';
+
+    time_t t = time(NULL);
+    if (t == (time_t)-1) return -1;
+
+#if defined(_WIN32) || defined(_MSC_VER)
+    struct tm tmbuf;
+    if (localtime_s(&tmbuf, &t) != 0) return -1;
+    if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) return -1;
+    return 0;
+#elif defined(__unix__) || defined(__APPLE__)
+    struct tm tmbuf;
+    if (localtime_r(&t, &tmbuf) == NULL) return -1;
+    if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) return -1;
+    return 0;
+#else
+    struct tm *tmp = localtime(&t);
+    if (!tmp) return -1;
+    if (strftime(out, out_size, "%Y-%m-%d %H:%M", tmp) == 0) return -1;
+    return 0;
+#endif
 }

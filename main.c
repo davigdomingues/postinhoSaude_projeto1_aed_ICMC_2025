@@ -105,6 +105,7 @@ static void show_menu(void) {
 int main(){
     PatientList *pl = plist_create();
     Queue       *q  = queue_create(WAIT_CAP);
+    
     if (!pl || !q) {
         fprintf(stderr, "Erro de inicialização.\n");
         return 1;
@@ -250,7 +251,7 @@ int main(){
             message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 3) {
-            char id[MAX_ID_LEN + 1], proc[PROC_MAX_LEN + 1];
+            char id[MAX_ID_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
             if (plist_find_index(pl, id) < 0) {
@@ -263,13 +264,37 @@ int main(){
                 continue;
             }
 
+            /* lê descrição com validações e prefixar timestamp via util::format_timestamp */
+            char proc[PROC_MAX_LEN + 1];
             printf("Procedimento (até %d chars): ", PROC_MAX_LEN);
             read_line(proc, sizeof(proc));
 
-            if (plist_history_push(pl, id, proc) == 0)
+            if (read_line_truncated()) {
+                message_and_clear("Descrição muito longa. Tente novamente.", MSG_WAIT_SHORT);
+                continue;
+            }
+
+            if (proc[0] == '\0') {
+                message_and_clear("Descrição vazia. Tente novamente.", MSG_WAIT_SHORT);
+                continue;
+            }
+
+            /* obter timestamp formatado (se disponível) */
+            char timestr[32] = {0};
+            if (format_timestamp(timestr, sizeof(timestr)) != 0)
+                timestr[0] = '\0';
+
+            /* montar item com timestamp seguro e truncado para PROC_MAX_LEN */
+            char item[PROC_MAX_LEN + 1];
+            if (timestr[0] != '\0')
+                snprintf(item, sizeof(item), "[%s] %s", timestr, proc);
+            else
+                snprintf(item, sizeof(item), "%s", proc); /* sem timestamp se falhar */
+
+            if (plist_history_push(pl, id, item) == 0)
                 printf("Procedimento adicionado.\n");
             else
-                printf("Falha ao adicionar procedimento.\n");
+                printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
 
             message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
 

@@ -3,6 +3,7 @@
 #include <string.h>
 #include "procedure.h"
 #include "config.h"
+#include "util.h" /* usar read_line/read_line_truncated */
 
 struct procedure_ {
     char *str;
@@ -21,13 +22,17 @@ PROCEDURE *procedure_create(void) {
         return NULL;
     }
 
-    if (fgets(procedure->str, PROC_MAX_LEN + 1, stdin) != NULL) {
+    /* Usar read_line para comportamento consistente com o restante do projeto */
+    read_line(procedure->str, PROC_MAX_LEN + 1);
+    if (read_line_truncated()) {
+        /* já descartamos o restante da linha em read_line; opcional: indicar truncamento com '...' */
         size_t len = strlen(procedure->str);
-        if (len > 0 && procedure->str[len - 1] == '\n')
-            procedure->str[len - 1] = '\0';
-    } else {
-        procedure->str[0] = '\0';
+        if (len >= 3) {
+            if (len > PROC_MAX_LEN - 3) procedure->str[PROC_MAX_LEN - 3] = '\0';
+            strcat(procedure->str, "...");
+        }
     }
+
     return procedure;
 }
 

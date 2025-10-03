@@ -12,4 +12,8 @@ void read_line(char *buf, size_t size);
    0 caso contrário. A função também garante que o restante da linha no stdin foi descartado. */
 int read_line_truncated(void);
 
+/* Formata timestamp local em 'out' (inclui '\0'). Retorna 0 em sucesso, -1 se não foi possível. 
+   Formato: "YYYY-MM-DD HH:MM" (usa localtime_r/localtime_s/localtime conforme plataforma). */
+int format_timestamp(char *out, size_t out_size);
+
 #endif
