@@ -32,4 +32,10 @@
     #define MSG_WAIT_MEDIUM 4000U
     #define MSG_WAIT_LONG 5000U
 
+    /*
+     * Observação:
+     * - DATA_FILE aponta para o ficheiro usado por io_save/io_load; alterar este valor
+     *   muda o ficheiro persistido por todo o sistema.
+     */
+
 #endif

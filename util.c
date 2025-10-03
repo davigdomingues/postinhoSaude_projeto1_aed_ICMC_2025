@@ -65,3 +65,11 @@ int format_timestamp(char *out, size_t out_size) {
     return 0;
 #endif
 }
+
+/* Implementações de util.h
+ *
+ * Observações:
+ * - read_line() e read_line_truncated() garantem comportamento consistente e descarte do restante da linha.
+ * - format_timestamp() usa apis seguras (localtime_r/localtime_s) conforme plataforma.
+ * - Este módulo não faz persistência em disco.
+ */

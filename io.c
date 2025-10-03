@@ -22,6 +22,12 @@
  *   queue_enqueue) e tamanhos/capacidades (q->head, q->size, q->cap).
  * - As constantes MAX_ID_LEN, MAX_NAME_LEN, PROC_MAX_LEN são definidas em config.h
  *   e determinam os tamanhos dos buffers de leitura.
+ *
+ * Observações de persistência:
+ * - io_save implementa gravação segura: escreve para path + ".tmp" e só substitui
+ *   o ficheiro final se fclose() e rename() tiverem sucesso.
+ * - io_load valida o formato (uso de fgets/fscanf) e devolve -2 em caso de linhas faltantes
+ *   ou formato inconsistente, evitando povoar as estruturas com dados parciais.
  */
 
 #include <stdio.h>

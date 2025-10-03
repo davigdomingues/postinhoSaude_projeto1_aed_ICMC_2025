@@ -3,6 +3,13 @@
 
 #include <stddef.h>
 
+/* Utilitários de I/O locais e timestamp.
+ *
+ * Observações:
+ * - Funções aqui são utilitárias para leitura segura do stdin e formatação de timestamps.
+ * - Não fazem persistência nem I/O em ficheiros; usadas por main.c e outros módulos.
+ */
+
 /* Lê uma linha de stdin para 'buf' com no máximo 'size' bytes (incluindo '\0').
    Remove o terminador de linha ('\n' e '\r') se presente.
    Em caso de EOF ou erro, coloca uma string vazia em buf. */

@@ -19,6 +19,10 @@
  * - Usa Patient, History e constantes de config (MAX_ID_LEN, MAX_NAME_LEN).
  * - Pressupõe existência de history_init(&p->hist) para inicializar o histórico.
  * - A impressão assume que History possui campo `top` com o índice do topo (top >= -1).
+ *
+ * Observações de integração:
+ * - PatientList delega persistência em disco para io.c; funções aqui são apenas manipulação em memória.
+ * - Ao remover um paciente chamamos history_free() para limpar o histórico antes de sobrescrever/soltar memória.
  */
 
 #include <stdio.h>

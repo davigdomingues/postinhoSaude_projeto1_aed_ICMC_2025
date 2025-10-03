@@ -71,9 +71,11 @@ Limpeza:
 - Antes de terminar, a aplicação chama queue_free(&q) e plist_free(&pl) para libertar recursos dinâmicos alocados pelos módulos.
 
 Observações de integração:
-- A maior parte da lógica "pesada" (inserção/remoção, memória) está em módulos separados (patient_list, queue, history, io). main.c coordena e valida entradas.
-- Para depuração/portabilidade: considere verificar retornos de funções de I/O mais detalhadamente e normalizar tratamentos de strings (trim), mas a estrutura atual é adequada para um protótipo educativo.
-
+- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_list, queue, history, io, util).
+- Persistência: main.c chama io_load(DATA_FILE, ...) no arranque e io_save(DATA_FILE, ...) ao sair.
+  * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
+  * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
+- UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo utilizador.
 */
 
 #include <stdio.h>

@@ -32,6 +32,10 @@
  * - void plist_print(const PatientList *pl)
  *     Imprime uma lista simples de pacientes com ID, nome e número de procedimentos
  *     (usando p->hist.top + 1 para contar entradas do histórico).
+ *
+ * Observações:
+ * - Este módulo implementa apenas a gestão em memória de pacientes e históricos.
+ * - Persistência em disco é responsabilidade do módulo io (io_save/io_load) — não há I/O em ficheiros aqui.
  */
 
 #ifndef PATIENT_LIST_H

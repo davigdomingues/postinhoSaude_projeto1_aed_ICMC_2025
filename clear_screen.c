@@ -1,6 +1,10 @@
-// clear_screen.c
-// Funções utilitárias para limpar o terminal e exibir uma mensagem breve antes
-// de limpar. Compatível com Windows e sistemas Unix-like.
+/* clear_screen.c
+ * Funções utilitárias para limpar o terminal e exibir uma mensagem breve antes
+ * de limpar. Compatível com Windows e sistemas Unix-like.
+ *
+ * Observações:
+ * - Apenas efeitos na UI; não modifica nem persiste dados do programa.
+ */
 
 #include "clear_screen.h"
 #include <stdlib.h>
