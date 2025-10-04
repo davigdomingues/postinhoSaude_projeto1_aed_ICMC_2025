@@ -35,16 +35,12 @@
 /* Definição interna de History (visível apenas neste translation unit).
    Mantém o tipo History opaco publicamente (history.h) mas permite que
    patient_list.c declare Patient com um campo History diretamente. */
-struct History {
-    char items[HIST_MAX][PROC_MAX_LEN + 1];
-    int top;
-};
 
 /* Definições internas */
 struct Patient {
     char id[MAX_ID_LEN + 1];
     char name[MAX_NAME_LEN + 1];
-    History hist;
+    History *hist; /* ponteiro para history opaco: preserva encapsulamento */
     bool called; /* true se o paciente já foi chamado para atendimento */
 };
 
@@ -75,8 +71,12 @@ static void plist_free(PatientList *pl) {
         return;
 
     if (pl->data) {
-        for (size_t i = 0; i < pl->size; ++i)
-            history_free(&pl->data[i].hist);
+        for (size_t i = 0; i < pl->size; ++i) {
+            if (pl->data[i].hist) {
+                history_destroy(pl->data[i].hist);
+                pl->data[i].hist = NULL;
+            }
+        }
         free(pl->data);
     }
 
@@ -115,7 +115,13 @@ int plist_insert(PatientList *pl, const char *id, const char *name) {
     Patient *p = &pl->data[pl->size++];
     strncpy(p->id, id, MAX_ID_LEN); p->id[MAX_ID_LEN] = '\0';
     strncpy(p->name, name, MAX_NAME_LEN); p->name[MAX_NAME_LEN] = '\0';
-    history_init(&p->hist);
+    /* criar History via API centralizada */
+    p->hist = history_create();
+    if (!p->hist) {
+        /* falha de alocação: desfaz incremento de size */
+        pl->size--;
+        return -2;
+    }
     p->called = false;
 
     return 0;
@@ -132,7 +138,10 @@ int plist_remove(PatientList *pl, const char *id) {
     }
 
     /* remover histórico do paciente a ser excluído e substituir pelo último elemento */
-    history_free(&pl->data[idx].hist);
+    if (pl->data[idx].hist) {
+        history_destroy(pl->data[idx].hist);
+        pl->data[idx].hist = NULL;
+    }
     pl->data[idx] = pl->data[pl->size - 1];
     pl->size--;
     
@@ -165,8 +174,9 @@ void plist_print(const PatientList *pl) {
     }
     
     for (size_t i = 0; i < pl->size; ++i) {
+        int hcount = pl->data[i].hist ? history_size(pl->data[i].hist) : 0;
         printf("- ID: %s | Nome: %s | Procedimentos: %d | Chamado: %s\n",
-               pl->data[i].id, pl->data[i].name, pl->data[i].hist.top + 1,
+               pl->data[i].id, pl->data[i].name, hcount,
                pl->data[i].called ? "SIM" : "NAO");
     }
 }
@@ -247,7 +257,7 @@ int plist_history_is_full(const PatientList *pl, const char *id) {
 
     int idx = plist_find_index(pl, id);
 
-    return (idx < 0) ? 0 : (history_is_full(&pl->data[idx].hist) ? 1 : 0);
+    return (idx < 0 || !pl->data[idx].hist) ? 0 : (history_is_full(pl->data[idx].hist) ? 1 : 0);
 }
 
 int plist_history_push(PatientList *pl, const char *id, const char *proc) {
@@ -256,7 +266,7 @@ int plist_history_push(PatientList *pl, const char *id, const char *proc) {
 
     int idx = plist_find_index(pl, id);
 
-    return (idx < 0) ? -1 : history_push(&pl->data[idx].hist, proc);
+    return (idx < 0 || !pl->data[idx].hist) ? -1 : history_push(pl->data[idx].hist, proc);
 }
 
 int plist_history_pop(PatientList *pl, const char *id, char *out, size_t out_size) {
@@ -265,7 +275,7 @@ int plist_history_pop(PatientList *pl, const char *id, char *out, size_t out_siz
 
     int idx = plist_find_index(pl, id);
 
-    return (idx < 0) ? -1 : history_pop(&pl->data[idx].hist, out, out_size);
+    return (idx < 0 || !pl->data[idx].hist) ? -1 : history_pop(pl->data[idx].hist, out, out_size);
 }
 
 int plist_history_size_by_id(const PatientList *pl, const char *id) {
@@ -274,7 +284,7 @@ int plist_history_size_by_id(const PatientList *pl, const char *id) {
 
     int idx = plist_find_index(pl, id);
 
-    return (idx < 0) ? 0 : history_size(&pl->data[idx].hist);
+    return (idx < 0 || !pl->data[idx].hist) ? 0 : history_size(pl->data[idx].hist);
 }
 
 int plist_history_get_by_id(const PatientList *pl, const char *id, int hist_idx, char *out, size_t out_size) {
@@ -286,13 +296,8 @@ int plist_history_get_by_id(const PatientList *pl, const char *id, int hist_idx,
     if (idx < 0) 
         return -1;
 
-    if (hist_idx < 0 || hist_idx > pl->data[idx].hist.top) 
-        return -1;
-
-    strncpy(out, pl->data[idx].hist.items[hist_idx], out_size - 1);
-    out[out_size - 1] = '\0';
-
-    return 0;
+    if (!pl->data[idx].hist) return -1;
+    return history_get_by_index(pl->data[idx].hist, hist_idx, out, out_size);
 }
 
 /* por índice (útil para serialização em io.c) */
@@ -300,7 +305,7 @@ int plist_history_size_by_index(const PatientList *pl, size_t patient_idx) {
     if (!pl || patient_idx >= pl->size) 
         return 0;
 
-    return history_size(&pl->data[patient_idx].hist);
+    return pl->data[patient_idx].hist ? history_size(pl->data[patient_idx].hist) : 0;
 }
 
 /* Novamente: obter entrada do histórico por índice do paciente.
@@ -312,11 +317,8 @@ int plist_history_get_by_index(const PatientList *pl, size_t patient_idx, int hi
     if (patient_idx >= pl->size) 
         return -1;
 
-    if (hist_idx < 0 || hist_idx > pl->data[patient_idx].hist.top) 
-        return -1;
-
-    strncpy(out, pl->data[patient_idx].hist.items[hist_idx], out_size - 1);
-    out[out_size - 1] = '\0';
+    if (!pl->data[patient_idx].hist) return -1;
+    return history_get_by_index(pl->data[patient_idx].hist, hist_idx, out, out_size);
     
     return 0;
 }

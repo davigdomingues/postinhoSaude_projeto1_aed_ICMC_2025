@@ -3,7 +3,13 @@
 #include <stdlib.h>
 #include "queue.h"
 
-/* Definição interna de Queue (TAD opaco no header) */
+/* Definição interna de Queue (TAD opaco no header)
+   (comentário existente mantido)
+
+   Observação de persistência:
+   - A representação interna é serializada/deserializada por io.c; este ficheiro não realiza I/O em disco.
+*/
+
 struct Queue {
     char ids[WAIT_CAP][MAX_ID_LEN + 1];
     int head; /* índice do primeiro elemento */
@@ -57,7 +63,7 @@ int queue_contains(const Queue *q, const char *id) {
 
 void queue_print(const Queue *q) {
     if (!q) return;
-    printf("Fila de espera (size = %d):\n", q->size);
+    
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
         printf("%d: %s\n", i + 1, q->ids[idx]);
 }

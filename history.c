@@ -4,6 +4,12 @@
 #include "history.h"
 #include "config.h"
 
+/* Implementação de History (pilha de procedimentos).
+ *
+ * Observações:
+ * - Não faz I/O em disco; os dados são persistidos via io.c quando necessário.
+ */
+
 struct History {
     char items[HIST_MAX][PROC_MAX_LEN + 1];
     int top;
@@ -35,6 +41,29 @@ int history_pop(History *h, char *out, size_t out_size) {
     h->items[h->top][0] = '\0';
     h->top--;
     return 0;
+}
+
+int history_get_by_index(const History *h, int idx, char *out, size_t out_size) {
+    if (!h || !out || out_size == 0) return -1;
+    if (idx < 0 || idx > h->top) return -1;
+    strncpy(out, h->items[idx], out_size - 1);
+    out[out_size - 1] = '\0';
+    return 0;
+}
+
+/* Cria (aloca + inicializa) um History opaco */
+History *history_create(void) {
+    History *h = (History *)malloc(sizeof(History));
+    if (!h) return NULL;
+    history_init(h);
+    return h;
+}
+
+/* Destroi (libera internamente e free) um History criado por history_create */
+void history_destroy(History *h) {
+    if (!h) return;
+    history_free(h);
+    free(h);
 }
 
 bool history_is_full(const History *h) {

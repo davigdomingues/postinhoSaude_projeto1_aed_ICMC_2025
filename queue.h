@@ -6,6 +6,11 @@
 
 typedef struct Queue Queue;
 
+/* Nota:
+ * - Queue é um TAD em memória que guarda IDs de pacientes; io.c é responsável por
+ *   ler/gravar a ordem da fila no ficheiro de dados (DATA_FILE).
+ */
+
 int queue_enqueue(Queue *q, const char *id); /* 0 ok, !=0 erro */
 int queue_dequeue(Queue *q, char *out, size_t out_size); /* 0 ok, !=0 erro */
 int queue_is_full(const Queue *q);

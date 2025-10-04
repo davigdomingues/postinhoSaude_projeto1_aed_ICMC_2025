@@ -78,10 +78,10 @@ Observações de integração:
 - UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo utilizador.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h> /* para isalpha() */
+#include <stdio.h> // para printf() e FILE
+#include <stdlib.h> // para atoi() e alocação
+#include <string.h> // para manipular strings mais facilmente
+#include <ctype.h> // para isalpha()
 #include "config.h" // header com constantes de configuração
 #include "patient_list.h" // header da lista de pacientes
 #include "queue.h" // header da fila
@@ -128,17 +128,28 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                         printf("  %d) %s\n", hi + 1, hline);
                 }
             }
-        } else {
+        } 
+        
+        else
             printf("Nenhum paciente registrado.\n");
-        }
 
         printf("\n");
 
         if (queue_size(q) > 0) {
-            queue_print(q);
-        } else {
+            printf("Fila de espera:\n");
+            int qsz = queue_size(q);
+            for (int qi = 0; qi < qsz; ++qi) {
+                char qid[MAX_ID_LEN + 1];
+                char qname[MAX_NAME_LEN + 1];
+                if (queue_get_id_by_index(q, qi, qid, sizeof(qid)) != 0) continue;
+                if (plist_get_name_by_id(pl, qid, qname, sizeof(qname)) != 0)
+                    strncpy(qname, "(desconhecido)", sizeof(qname));
+                printf("%d: %s — %s\n", qi + 1, qid, qname);
+            }
+        } 
+        
+        else
             printf("\nFila de espera vazia.\n");
-        }
 
         /* Em vez de limpar automaticamente, aguarda que o utilizador pressione Enter
            para garantir que as impressões permaneçam visíveis. */
@@ -151,15 +162,15 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
         }
     } else if (load_r == -1) {
         /* arquivo inexistente: iniciar com estruturas vazias (normal em primeira execução) */
-        printf("Nenhum arquivo de dados encontrado. Iniciando com banco vazio.\n");
+        printf("Nenhum arquivo de dados encontrado.\n");
         message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
     } else {
-        printf("Erro ao carregar dados (formato/IO). Iniciando com banco vazio.\n");
-        message_and_clear("Erro ao carregar dados. Iniciando com banco vazio.", MSG_WAIT_SHORT);
+        printf("Erro ao carregar dados (formato/IO).\n");
+        message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
     }
 
     /* Mensagem de boas-vindas simples (sem limpar novamente imediatamente) */
-    printf("Bem-vindo ao PostinhoSUS — Sistema de Gestão (Projeto AED, ICMC 2025).\n");
+    message_and_clear("Bem-vindo ao PostinhoSUS — Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
 int main(){
