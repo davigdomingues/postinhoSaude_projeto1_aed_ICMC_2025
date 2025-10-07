@@ -51,6 +51,10 @@ struct PatientList {
 };
 
 /* Helpers estáticos */
+/* Expande a capacidade interna do array de pacientes.
+   - Nova capacidade = cap*2 ou 16 se cap==0
+   - Usa realloc; se realloc falhar, retorna -1 e pl permanece inalterado
+   - Complexidade amortizada constante por insercao quando usado pelo loop de insercao */
 static int plist_grow(PatientList *pl) {
     size_t ncap = pl->cap ? pl->cap * 2 : 16;
     Patient *nd = realloc(pl->data, ncap * sizeof(Patient));
@@ -60,12 +64,15 @@ static int plist_grow(PatientList *pl) {
     return 0;
 }
 
+/* Inicializa campos da estrutura PatientList (data=NULL, size=0, cap=0) */
 static void plist_init(PatientList *pl) {
     pl->data = NULL;
     pl->size = 0;
     pl->cap = 0;
 }
 
+/* Liberta memórias associadas aos pacientes e aos historicos (history_destroy)
+   e reseta os campos internos */
 static void plist_free(PatientList *pl) {
     if (!pl) 
         return;
@@ -85,11 +92,13 @@ static void plist_free(PatientList *pl) {
     pl->cap = 0;
 }
 
+/* Retorna ponteiro para paciente pelo id ou NULL se nao existir */
 static Patient *plist_get(PatientList *pl, const char *id) {
     int idx = plist_find_index(pl, id);
     return idx < 0 ? NULL : &pl->data[idx];
 }
 
+/* Pesquisa linear por ID, retorna indice ou -1 */
 int plist_find_index(const PatientList *pl, const char *id) {
     if (!pl || !id) 
         return -1;
@@ -102,6 +111,14 @@ int plist_find_index(const PatientList *pl, const char *id) {
     return -1;
 }
 
+/* Insere novo paciente:
+   - Valida parametros (pl, id, name)
+   - Evita duplicatas (procura linear)
+   - Garante espaço (plist_grow)
+   - Copia id e name de forma segura com strncpy e terminação forçada
+   - Cria um History opaco via history_create (centraliza alocacao) e inicializa o campo 'called' como false
+   - Retorna codigos: 0 sucesso, -1 duplicado, -2 entrada invalida/erro memoria
+*/
 int plist_insert(PatientList *pl, const char *id, const char *name) {
     if (!pl || !id || !*id || !name || !*name) 
         return -2;
@@ -127,6 +144,12 @@ int plist_insert(PatientList *pl, const char *id, const char *name) {
     return 0;
 }
 
+/* Remove paciente por ID:
+   - Procura indice via plist_find_index
+   - Libera o History associado usando history_destroy (se alocado)
+   - Substitui o elemento removido pelo ultimo elemento do array (O(1))
+   - Decrementa pl->size
+   - Observacao: a ordem dos pacientes nao e preservada apos remocao */
 int plist_remove(PatientList *pl, const char *id) {
     if (!pl || !id) 
         return -1;
@@ -148,6 +171,7 @@ int plist_remove(PatientList *pl, const char *id) {
     return 0;
 }
 
+/* Marca/desmarca o campo 'called' de um paciente */
 int plist_set_called(PatientList *pl, const char *id, bool called) {
     if (!pl || !id) 
         return -1;

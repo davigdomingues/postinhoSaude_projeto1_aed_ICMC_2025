@@ -15,15 +15,23 @@ struct History {
     int top;
 };
 
+/* Inicializa uma estrutura History (top = -1) */
 void history_init(History *h) {
     if (!h) return;
     h->top = -1;
 }
 
+/* Liberacao logica do History (atualmente noop, mas mantido para extensibilidade) */
 void history_free(History *h) {
     (void)h;
 }
 
+/* Empilha nova entrada:
+   - verifica capacidade (HIST_MAX)
+   - copia com strncpy garantindo terminação
+   - incrementa top
+   - retorna 0 sucesso, -1 se cheio/erro
+*/
 int history_push(History *h, const char *proc) {
     if (!h || !proc) return -1;
     if (h->top >= HIST_MAX - 1) return -1;
@@ -33,6 +41,11 @@ int history_push(History *h, const char *proc) {
     return 0;
 }
 
+/* Remove topo:
+   - copia conteudo do topo para 'out' (seguro)
+   - zera a string no topo e decrementa top
+   - retorna -1 se vazio
+*/
 int history_pop(History *h, char *out, size_t out_size) {
     if (!h || !out || out_size == 0) return -1;
     if (h->top < 0) return -1;
@@ -43,6 +56,7 @@ int history_pop(History *h, char *out, size_t out_size) {
     return 0;
 }
 
+/* Copia (sem remover) a entrada no indice 'idx' para out. Retorna 0 sucesso, -1 erro */
 int history_get_by_index(const History *h, int idx, char *out, size_t out_size) {
     if (!h || !out || out_size == 0) return -1;
     if (idx < 0 || idx > h->top) return -1;
@@ -51,7 +65,10 @@ int history_get_by_index(const History *h, int idx, char *out, size_t out_size) 
     return 0;
 }
 
-/* Cria (aloca + inicializa) um History opaco */
+/* Cria/destroi History:
+   - history_create encapsula malloc + history_init
+   - history_destroy faz cleanup possivel (history_free) e free
+*/
 History *history_create(void) {
     History *h = (History *)malloc(sizeof(History));
     if (!h) return NULL;
@@ -59,13 +76,13 @@ History *history_create(void) {
     return h;
 }
 
-/* Destroi (libera internamente e free) um History criado por history_create */
 void history_destroy(History *h) {
     if (!h) return;
     history_free(h);
     free(h);
 }
 
+/* Predicados e utilitarios: is_full, is_empty, size, top, inspect (debug) */
 bool history_is_full(const History *h) {
     if (!h) return false;
     return (h->top >= HIST_MAX - 1);
@@ -86,9 +103,10 @@ const char *history_top(const History *h) {
     return h->items[h->top];
 }
 
+/* Inspecao para debug: imprime todas as entradas do historico */
 void history_inspect(History *h) {
     if (!h) return;
-    printf("Histórico (top=%d):\n", h->top);
+    printf("Historico (top = %d):\n", h->top);
     for (int i = 0; i <= h->top; ++i)
         printf("%d: %s\n", i, h->items[i]);
 }

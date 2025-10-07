@@ -37,6 +37,7 @@
 #include "config.h"
 
 
+/* Remove terminadores de linha CR/LF do fim da string lida com fgets */
 static void chomp(char *s) {
     if (!s) return;
 
@@ -46,6 +47,19 @@ static void chomp(char *s) {
         s[--n] = '\0';
 }
 
+/* Salva PatientList e Queue em 'path' com estrategia: escrever em tmp, fechar e rename.
+   Retorna 0 sucesso, -1 erro de I/O.
+
+   Passos detalhados dentro:
+   - Cria nome temporario "%s.tmp"
+   - Abre o ficheiro em modo texto para escrita (fopen)
+   - Escreve numero de pacientes (unsigned long) seguido de novas linhas
+   - Para cada paciente escreve id, name, n_history, cada entrada do historico e o called_flag
+   - Em seguida escreve tamanho da fila e cada id da fila em linhas separadas
+   - Fecha o ficheiro: se fclose falhar, apaga o .tmp e retorna erro (nao substitui o ficheiro alvo)
+   - Se fclose ok, remove(path) e rename(tmp,path) para realizar substituicao atomica simples
+   - Em caso de qualquer erro de escrita/leitura retorna -1 (io_save) e o chamador pode avisar o usuario
+*/
 int io_save(const char *path, const PatientList *pl, const Queue *q) {
     /* grava para ficheiro temporário e substitui apenas em sucesso */
     char tmp[512];
@@ -102,6 +116,23 @@ int io_save(const char *path, const PatientList *pl, const Queue *q) {
     return 0;
 }
 
+/* Carrega dados de 'path' reconstruindo PatientList e Queue.
+   Valida formato e devolve 0 sucesso, -1 ficheiro inacessivel, -2 erro de formato/leitura.
+
+   Passos internos e validacoes importantes:
+   - Abre o ficheiro em modo leitura
+   - Lê a primeira linha com fscanf("%lu\\n") para obter number_of_patients
+     (usamos unsigned long e convertemos para size_t para portabilidade)
+   - Para cada paciente:
+     * le id via fgets (verificar retorno)
+     * le name via fgets (verificar retorno)
+     * chomp em id/name (remove CR/LF)
+     * chama plist_insert para criar o paciente em memoria
+     * le n_history via fscanf("%d\\n"), e para cada entrada le uma linha e faz plist_history_push
+     * le called_flag via fscanf("%d\\n") e aplica plist_set_called
+   - Depois le tamanho da fila e enfileira os ids lidos (queue_enqueue), ignorando overflow da fila
+   - Em caso de qualquer leitura inesperada retorna -2 e nao altera mais o estado
+*/
 int io_load(const char *path, PatientList *pl, Queue *q) {
     FILE *f = fopen(path, "r");
     if (!f)

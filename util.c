@@ -6,8 +6,16 @@
 
 static int last_truncated = 0;
 
-/* Lê uma linha segura de stdin, garante terminação nula e remove CR/LF.
-   Define last_truncated = 1 se a linha foi truncada (entrada maior que buffer). */
+/* Le uma linha do stdin de forma segura, remove CR/LF, descarta resto da linha se truncada.
+   Define last_truncated = 1 se a entrada foi maior que o buffer.
+
+   Detalhes:
+   - Usa fgets com (int)size para evitar overflow do buffer.
+   - Se fgets nao obteve '\n' e nao houve EOF, presume-se que a linha foi truncada:
+     entao consumimos o restante da linha com getchar() ate encontrar '\n' ou EOF.
+   - Ao final, remove possiveis terminadores CR/LF no final do buffer.
+   - last_truncated indica ao chamador se a entrada foi truncada (para mensagens/erros).
+*/
 void read_line(char *buf, size_t size) {
     last_truncated = 0;
 
@@ -36,11 +44,21 @@ void read_line(char *buf, size_t size) {
     }
 }
 
+/* Retorna 1 se ultima chamada a read_line resultou em truncamento da entrada
+   Comentario: funcao simples de consulta do estado interno last_truncated */
 int read_line_truncated(void) {
     return last_truncated;
 }
 
-/* Formata timestamp local em out. Retorna 0 em sucesso, -1 em erro */
+/* Formata timestamp local em out no formato "YYYY-MM-DD HH:MM".
+   Retorna 0 em sucesso, -1 em erro.
+
+   Detalhes:
+   - Obtém time_t atual com time(NULL).
+   - Usa localtime_r/localtime_s quando disponivel para evitar problemas de thread-safety.
+   - Usa strftime para formatacao portavel.
+   - Valores de retorno permitem ao chamador saber se a funcao falhou (ex.: errno/time(NULL) invalido).
+*/
 int format_timestamp(char *out, size_t out_size) {
     if (!out || out_size == 0) return -1;
     out[0] = '\0';

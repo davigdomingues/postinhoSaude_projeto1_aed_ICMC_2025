@@ -17,6 +17,7 @@
 #include <unistd.h> // Biblioteca POSIX para usleep(), que suspende a execução por microsegundos
 #endif
 
+/* Executa o comando de limpar tela apropriado para a plataforma */
 void clear_screen(void) {
 #ifdef _WIN32
     /* No Windows executamos o comando 'cls' no shell para limpar a tela. */
@@ -27,16 +28,12 @@ void clear_screen(void) {
 #endif
 }
 
-/*
- * Mostra uma mensagem de confirmação, espera pelo número de milissegundos
- * especificado e limpa a tela (chama clear_screen()).
- *
- * Comportamento importante:
- * - fflush(stdout) é chamado para garantir que a mensagem apareça antes da pausa.
- * - No Windows usamos Sleep(milliseconds) (milissegundos).
- * - Em POSIX usamos usleep(microsegundos) por isso multiplicamos por 1000.
- * - Cuidado com valores muito grandes para 'milliseconds' (pode causar overflow ao multiplicar).
- */
+/* Exibe 'message', espera e limpa:
+   - imprime mensagem (se não vazia) e fflush para garantir visibilidade
+   - usa Sleep no Windows (ms) e usleep em POSIX (conversao ms->us)
+   - previne overflow ao multiplicar usando MAX_SAFE_MILLISECONDS
+   - finaliza chamando clear_screen
+*/
 void message_and_clear(const char *message, unsigned int milliseconds) {
     if (message && message[0] != '\0')
         printf("%s\n", message);

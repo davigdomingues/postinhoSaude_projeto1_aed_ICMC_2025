@@ -17,6 +17,7 @@ struct Queue {
     int cap;  /* capacidade efetiva (<= WAIT_CAP) */
 };
 
+/* Inicializa estrutura interna da fila (head=0, size=0, cap=cap) */
 static int queue_init(Queue *q, int cap) {
     if (!q || cap <= 0 || cap > WAIT_CAP) return -1;
     q->head = 0;
@@ -25,6 +26,11 @@ static int queue_init(Queue *q, int cap) {
     return 0;
 }
 
+/* Enfileira no buffer circular:
+   - calcula indice de insercao = (head + size) % cap
+   - copia id com strncpy e garante terminação
+   - incrementa size
+   - retorna -1 se fila cheia ou parametros invalidos */
 int queue_enqueue(Queue *q, const char *id) {
     if (!q || !id) return -1;
     if (q->size >= q->cap) return -1;
@@ -35,6 +41,11 @@ int queue_enqueue(Queue *q, const char *id) {
     return 0;
 }
 
+/* Desenfileira do inicio:
+   - copia id do head para 'out' de forma segura (out_size)
+   - atualiza head = (head + 1) % cap e decrementa size
+   - retorna -1 se fila vazia
+*/
 int queue_dequeue(Queue *q, char *out, size_t out_size) {
     if (!q || !out || out_size == 0) return -1;
     if (q->size == 0) return -1;
@@ -45,14 +56,17 @@ int queue_dequeue(Queue *q, char *out, size_t out_size) {
     return 0;
 }
 
+/* Libera recursos internos (nenhum atualmente) */
 static void queue_free(Queue *q) {
     (void)q;
 }
 
+/* Verifica se a fila esta cheia (1) ou nao (0) */
 int queue_is_full(const Queue *q) {
     return (q && q->size >= q->cap) ? 1 : 0;
 }
 
+/* Verifica existencia de um ID na fila (1 presente, 0 ausente) */
 int queue_contains(const Queue *q, const char *id) {
     if (!q || !id) return 0;
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap) {
@@ -61,6 +75,10 @@ int queue_contains(const Queue *q, const char *id) {
     return 0;
 }
 
+/* Imprime a fila em ordem logica:
+   - itera a partir de head e avanca modulo cap para respeitar wrap-around
+   - imprime posicao (1-based) e id correspondente
+*/
 void queue_print(const Queue *q) {
     if (!q) return;
     
@@ -68,6 +86,12 @@ void queue_print(const Queue *q) {
         printf("%d: %s\n", i + 1, q->ids[idx]);
 }
 
+/* Remove um id arbitrario:
+   - procura o id iterando a partir de head (wrap-around)
+   - ao encontrar desloca os elementos subsequentes uma posicao para a esquerda,
+     preservando a ordem logica da fila (operacao O(n))
+   - decrementa size
+*/
 int queue_remove(Queue *q, const char *id) {
     if (!q || !id) return -1;
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap) {
@@ -85,6 +109,7 @@ int queue_remove(Queue *q, const char *id) {
     return -1;
 }
 
+/* Criacao / destruicao da fila (aloca o TAD opaco) */
 Queue* queue_create(int cap) {
     Queue *q = malloc(sizeof(Queue));
     if (!q) return NULL;
@@ -98,6 +123,7 @@ void queue_destroy(Queue *q) {
     free(q);
 }
 
+/* Consultas auxiliares: tamanho e obter ID por indice logico na fila */
 int queue_size(const Queue *q) {
     return q ? q->size : 0;
 }
