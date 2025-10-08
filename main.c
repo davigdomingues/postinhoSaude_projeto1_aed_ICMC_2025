@@ -135,11 +135,11 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                 if (plist_get_name_by_index(pl, pi, pname, sizeof(pname)) != 0) strncpy(pname, "(desconhecido)", sizeof(pname));
 
                 int hsz = plist_history_size_by_index(pl, pi);
-                printf("\nHistorico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
+                util_printf("\nHistorico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
                 for (int hi = 0; hi < hsz; ++hi) {
                     char hline[PROC_MAX_LEN + 1];
                     if (plist_history_get_by_index(pl, pi, hi, hline, sizeof(hline)) == 0)
-                        printf("  %d) %s\n", hi + 1, hline);
+                        util_printf("  %d) %s\n", hi + 1, hline);
                 }
             }
         } 
@@ -158,7 +158,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                 if (queue_get_id_by_index(q, qi, qid, sizeof(qid)) != 0) continue;
                 if (plist_get_name_by_id(pl, qid, qname, sizeof(qname)) != 0)
                     strncpy(qname, "(desconhecido)", sizeof(qname));
-                printf("%d: %s - %s\n", qi + 1, qid, qname);
+                util_printf("%d: %s - %s\n", qi + 1, qid, qname);
             }
         } 
         
@@ -196,11 +196,21 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
 */
 int main(){
     /* configuração local para suporte à dados multibyte (acentuados) */
+    /* define locale a partir do ambiente; preferir UTF-8 quando disponível */
     setlocale(LC_ALL, "");
 #if defined(_WIN32)
-    /* opcional: definir CP do console para UTF-8 se o terminal suportar */
+    /* força codepage do console para UTF-8 no Windows (melhora exibição de acentos no cmd.exe) */
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
+    /* também altera code page do host via chcp (silencioso) para compatibilidade com consoles antigos */
+    system("chcp 65001 > nul");
+#else
+    /* tenta assegurar que há um locale UTF-8 quando não definido (melhora exibição em terminais Unix) */
+    if (!getenv("LANG") && !getenv("LC_ALL")) {
+        /* esforço simples, não sobrescreve configuração do utilizador se já existir */
+        setenv("LC_ALL", "en_US.UTF-8", 0);
+        setlocale(LC_ALL, "");
+    }
 #endif
 
     PatientList *pl = plist_create();
@@ -467,7 +477,7 @@ int main(){
                 char name[MAX_NAME_LEN + 1];
                 if (plist_get_name_by_id(pl, id, name, sizeof(name)) == 0) {
                     plist_set_called(pl, id, true);
-                    printf("Chamando: ID %s | Nome: %s\n", id, name);
+                    util_printf("Chamando: ID %s | Nome: %s\n", id, name);
                 } else
                     printf("Chamando: ID %s | Nome: (desconhecido)\n", id);
             } else
@@ -506,12 +516,12 @@ int main(){
             char name[MAX_NAME_LEN + 1];
             plist_get_name_by_id(pl, id, name, sizeof(name));
 
-            printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
+            util_printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
 
             for (int i = 0; i < n; ++i) {
                 char item[PROC_MAX_LEN + 1];
                 if (plist_history_get_by_id(pl, id, i, item, sizeof(item)) == 0)
-                    printf("%d) %s\n", i + 1, item);
+                    util_printf("%d) %s\n", i + 1, item);
             }
 
             message_and_clear("Retornando ao menu...", MSG_WAIT_MEDIUM);

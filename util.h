@@ -23,4 +23,11 @@ int read_line_truncated(void);
    Formato: "YYYY-MM-DD HH:MM" (usa localtime_r/localtime_s/localtime conforme plataforma). */
 int format_timestamp(char *out, size_t out_size);
 
+/* Funções de saída que garantem exibição correta de strings UTF-8 no Windows:
+ * - util_printf: formata uma string (como printf) e imprime em UTF-8; retorna número de caracteres impressos.
+ * - print_utf8: imprime diretamente uma string UTF-8 (sem formatação).
+ */
+int util_printf(const char *fmt, ...);
+void print_utf8(const char *s);
+
 #endif

@@ -3,6 +3,7 @@
 #include <string.h>
 #include "history.h"
 #include "config.h"
+#include "util.h"
 
 /* Implementação de History (pilha de procedimentos).
  *
@@ -106,7 +107,7 @@ const char *history_top(const History *h) {
 /* Inspecao para debug: imprime todas as entradas do historico */
 void history_inspect(History *h) {
     if (!h) return;
-    printf("Historico (top = %d):\n", h->top);
+    util_printf("Historico (top = %d):\n", h->top);
     for (int i = 0; i <= h->top; ++i)
-        printf("%d: %s\n", i, h->items[i]);
+        util_printf("%d: %s\n", i, h->items[i]);
 }

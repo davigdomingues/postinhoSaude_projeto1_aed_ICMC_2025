@@ -3,6 +3,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <stdarg.h>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 static int last_truncated = 0;
 
@@ -82,6 +86,67 @@ int format_timestamp(char *out, size_t out_size) {
     if (strftime(out, out_size, "%Y-%m-%d %H:%M", tmp) == 0) return -1;
     return 0;
 #endif
+}
+
+/* Imprime diretamente uma string UTF-8 de forma segura no Windows (WriteConsoleW)
+   ou via fputs em plataformas POSIX. */
+void print_utf8(const char *s) {
+    if (!s) return;
+#if defined(_WIN32)
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE) {
+        fputs(s, stdout);
+        return;
+    }
+    /* converte UTF-8 para UTF-16 */
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
+    if (wlen <= 0) { fputs(s, stdout); return; }
+    wchar_t *wbuf = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
+    if (!wbuf) { fputs(s, stdout); return; }
+    if (MultiByteToWideChar(CP_UTF8, 0, s, -1, wbuf, wlen) == 0) {
+        free(wbuf);
+        fputs(s, stdout);
+        return;
+    }
+    DWORD written = 0;
+    WriteConsoleW(h, wbuf, wlen - 1, &written, NULL); /* wlen includes terminator */
+    free(wbuf);
+#else
+    fputs(s, stdout);
+#endif
+}
+
+/* printf que aceita formato e argumentos, produz UTF-8 corretamente no Windows */
+int util_printf(const char *fmt, ...) {
+    if (!fmt) return 0;
+    int ret = 0;
+    va_list ap;
+    va_start(ap, fmt);
+    /* formata em buffer temporário */
+    char buf[1024];
+    int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    if (n < 0) {
+        /* tentativa com alocação se necessário */
+        va_end(ap);
+        va_start(ap, fmt);
+        int needed = vsnprintf(NULL, 0, fmt, ap);
+        va_end(ap);
+        if (needed <= 0) return 0;
+        char *dyn = (char *)malloc((size_t)needed + 1);
+        if (!dyn) return 0;
+        va_start(ap, fmt);
+        vsnprintf(dyn, (size_t)needed + 1, fmt, ap);
+        print_utf8(dyn);
+        ret = needed;
+        free(dyn);
+        va_end(ap);
+        return ret;
+    }
+    /* n é número de bytes que seriam escritos; buf possui a string truncada ou completa */
+    print_utf8(buf);
+    va_end(ap);
+    ret = n;
+    return ret;
 }
 
 /* Implementações de util.h
