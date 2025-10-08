@@ -60,6 +60,17 @@
  * 4) ids da fila (uma por linha, na ordem)
  */
 
+/*
+ * Observação sobre encoding:
+ * - io_load() realiza uma normalização simples das linhas lidas:
+ *     * se a linha for válida UTF-8, é usada tal como está;
+ *     * se a linha não for UTF-8 válida, io_load assume que está em CP1252
+ *       (Windows-1252) e tenta convertê-la para UTF-8 antes de armazenar em memória.
+ * - Isto permite compatibilidade com ficheiros de dados antigos gerados em ambientes
+ *   Windows que utilizem CP1252. É possível forçar uma conversão externa,
+ *   configurando o ficheiro para UTF-8 (ex.: iconv ou PowerShell) antes de executar.
+ */
+
 int io_save(const char *path, const PatientList *pl, const Queue *q); // 0 ok, -1 erro
 int io_load(const char *path, PatientList *pl, Queue *q); // 0 ok, -1 sem arquivo, -2 erro
 
