@@ -1,9 +1,9 @@
 @echo off
-REM Script para converter data.bin (assumindo CP1252) para UTF-8 (data.utf8)
+REM Script para converter bin\data.bin (assumindo CP1252) para UTF-8 (bin\data.utf8)
 REM Uso: abra PowerShell/Prompt no diretório do projeto e execute scripts\convert_data.bat
 
-set SRC=%~dp0\..\data.bin
-set DST=%~dp0\..\data.utf8
+set SRC=%~dp0\..\bin\data.bin
+set DST=%~dp0\..\bin\data.utf8
 
 if exist "%SRC%" (
     echo Detectando iconv...

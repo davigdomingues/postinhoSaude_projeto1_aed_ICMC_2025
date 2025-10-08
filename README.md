@@ -41,7 +41,7 @@ Arquivos principais (esperados neste diretório):
 
 ## Persistência (DATA_FILE)
 
-- Ficheiro usado: definido em `config.h` como `DATA_FILE` (padrão: `data.bin`).
+- Ficheiro usado: definido em `config.h` como `DATA_FILE` (padrão: `bin/data.bin`).
 - Comportamento de gravação:
   - `io_save` escreve num ficheiro temporário (`data.bin.tmp`) e só renomeia para o ficheiro final após sucesso de escrita/fecho; isto reduz o risco de corromper o ficheiro persistente.
   - O programa evita sobrescrever `DATA_FILE` com estado vazio quando a carga inicial falhou e não houver dados novos na sessão.
