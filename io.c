@@ -86,8 +86,17 @@ int io_save(const char *path, const PatientList *pl, const Queue *q) {
             fprintf(f, "%s\n", line);
         }
 
-        int called = plist_is_called(pl, id);
-        fprintf(f, "%d\n", called ? 1 : 0);
+        /* Garante que o valor persistido de 'called' seja consistente com a fila
+           Se o ID estiver na fila, consideramos que ele nao esta 'chamado' (0)
+           mesmo que a flag em memoria esteja desatualizada */
+        int called_flag = 0;
+        if (q && queue_contains(q, id))
+            called_flag = 0;
+        
+        else 
+            called_flag = plist_is_called(pl, id) ? 1 : 0;
+        
+        fprintf(f, "%d\n", called_flag);
     }
 
     int qsize = queue_size(q);

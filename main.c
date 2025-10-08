@@ -104,11 +104,11 @@ static void show_menu(void) {
     printf("\nMenu:\n");
     printf("1. Registrar paciente\n");
     printf("2. Registrar obito de paciente\n");
-    printf("3. Adicionar procedimento ao historico\n");
-    printf("4. Desfazer ultimo procedimento\n");
+    printf("3. Adicionar procedimento ao historico medico do paciente\n");
+    printf("4. Desfazer procedimento do historico medico do paciente\n");
     printf("5. Chamar paciente para atendimento\n");
     printf("6. Mostrar fila de espera\n");
-    printf("7. Mostrar historico do paciente\n");
+    printf("7. Mostrar historico medico do paciente\n");
     printf("8. Sair\n");
     printf("Escolha: ");
 }
@@ -293,6 +293,8 @@ int main(){
                         break;
                     } else {
                         queue_enqueue(q, id);
+                        /* paciente voltou para a fila -> marcar como nao chamado */
+                        (void)plist_set_called(pl, id, false);
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
                         reinInserted = 1; /* ja reinserido, pular cadastro */
                         break;
@@ -307,35 +309,25 @@ int main(){
                 continue;
             }
 
-            /* Lê e valida nome: aceita letras (até mesmo as acentuadas) e espaços usando mbrtowc/iswalpha */
+            /* Lê e aceita nome arbitrário (qualquer string nao vazia).
+               Observacao: aceita acentos e outros caracteres sem validação por caractere.
+               Rejeita nomes truncados ou vazios. */
             for (;;) {
                 printf("Nome: "); read_line(name, sizeof(name));
 
+                /* entrada maior que o buffer é truncada -> pedir novamente */
+                if (read_line_truncated()) {
+                    message_and_clear("Nome muito longo. Tente novamente.", MSG_WAIT_SHORT);
+                    continue;
+                }
+
+                /* nome vazio nao e aceito */
                 if (name[0] == '\0') {
                     message_and_clear("Nome vazio. Informe novamente.", MSG_WAIT_SHORT);
                     continue;
                 }
 
-                int valid = 1;
-                mbstate_t st;
-                memset(&st, 0, sizeof(st));
-                const char *p = name;
-                while (*p) {
-                    wchar_t wc;
-                    size_t n = mbrtowc(&wc, p, MB_CUR_MAX, &st);
-                    if (n == (size_t)-1 || n == (size_t)-2) { valid = 0; break; }
-                    /* aceita letras e espaço */
-                    if (iswalpha(wc) || iswspace(wc)) {
-                        p += n == 0 ? 1 : n;
-                        continue;
-                    } else {
-                        valid = 0;
-                        break;
-                    }
-                }
-
-                if (valid) break;
-                message_and_clear("Nome invalido. Use apenas letras e espacos.", MSG_WAIT_SHORT);
+                break;
             }
 
             int r = plist_insert(pl, id, name);
@@ -402,7 +394,7 @@ int main(){
 
             /* lê descrição com validações e prefixar timestamp via util::format_timestamp */
             char proc[PROC_MAX_LEN + 1];
-            printf("Procedimento (até %d chars): ", PROC_MAX_LEN);
+            printf("Procedimento (ate %d chars): ", PROC_MAX_LEN);
             read_line(proc, sizeof(proc));
 
             if (read_line_truncated()) {
@@ -459,10 +451,11 @@ int main(){
                 continue;
             }
 
+            /* Pop desfaz o ultimo procedimento (LIFO) */
             if (plist_history_pop(pl, id, out, sizeof(out)) == 0)
-                printf("Procedimento desfeito: %s\n", out);
+                printf("Procedimento desfeito (ultimo): %s\n", out);
             else
-                printf("Nao ha procedimento a desfazer.\n");
+                message_and_clear("Nao ha procedimento a desfazer. Retornando ao menu...", MSG_WAIT_SHORT);
 
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
@@ -505,7 +498,7 @@ int main(){
 
             if (plist_find_index(pl, id) < 0) {
                 printf("Paciente nao encontrado.\n");
-                message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
@@ -513,7 +506,7 @@ int main(){
             char name[MAX_NAME_LEN + 1];
             plist_get_name_by_id(pl, id, name, sizeof(name));
 
-            printf("Histórico de %s (ID %s): %d item(ns)\n", name, id, n);
+            printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
 
             for (int i = 0; i < n; ++i) {
                 char item[PROC_MAX_LEN + 1];
