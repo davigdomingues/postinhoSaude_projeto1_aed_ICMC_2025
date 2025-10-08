@@ -31,6 +31,8 @@
 #include "patient_list.h"
 #include "config.h"
 #include "history.h"
+/* Usamos util_printf para garantir exibição UTF-8 correta no Windows */
+#include "util.h"
 
 /* Definição interna de History (visível apenas neste translation unit).
    Mantém o tipo History opaco publicamente (history.h) mas permite que
@@ -48,7 +50,100 @@ struct Patient {
 struct PatientList {
     Patient *data;
     size_t size, cap;
+    /* tabela hash: array de ponteiros para entradas (separate chaining) */
+    struct PlHashEntry **htable;
+    size_t hcap; /* número de buckets */
 };
+
+/* Entrada da tabela hash que mapeia id -> índice no array de pacientes */
+struct PlHashEntry {
+    char *key; /* chave duplicada com strdup() */
+    int idx;   /* índice no array pl->data */
+    struct PlHashEntry *next;
+};
+
+/* djb2 string hash */
+/* função de dispersão simples para strings (retorna um hash sem sinais) */
+static unsigned long str_hash(const char *str) {
+    unsigned long hash = 5381;
+    int c;
+    while ((c = (unsigned char)*str++))
+        hash = ((hash << 5) + hash) + c;
+    return hash;
+}
+
+/* inicializa a tabela hash interna (vazia) com 'buckets' baldes */
+static int plist_htable_init(PatientList *pl, size_t buckets) {
+    pl->htable = (struct PlHashEntry **)calloc(buckets, sizeof(struct PlHashEntry *));
+    if (!pl->htable) return -1;
+    pl->hcap = buckets;
+    return 0;
+}
+
+/* libera todas as entradas da tabela hash e o próprio array de baldes */
+static void plist_htable_free(PatientList *pl) {
+    if (!pl || !pl->htable) return;
+    for (size_t i = 0; i < pl->hcap; ++i) {
+        struct PlHashEntry *e = pl->htable[i];
+        while (e) {
+            struct PlHashEntry *n = e->next;
+            free(e->key);
+            free(e);
+            e = n;
+        }
+    }
+    free(pl->htable);
+    pl->htable = NULL;
+    pl->hcap = 0;
+}
+
+/* insere ou atualiza o mapeamento id -> indice no array de pacientes */
+static int plist_htable_put(PatientList *pl, const char *key, int idx) {
+    if (!pl || !pl->htable || !key) return -1;
+    unsigned long h = str_hash(key) % pl->hcap;
+    struct PlHashEntry *e = pl->htable[h];
+    while (e) {
+        if (strcmp(e->key, key) == 0) { e->idx = idx; return 0; }
+        e = e->next;
+    }
+    e = (struct PlHashEntry *)malloc(sizeof(*e));
+    if (!e) return -1;
+    e->key = strdup(key);
+    if (!e->key) { free(e); return -1; }
+    e->idx = idx;
+    e->next = pl->htable[h];
+    pl->htable[h] = e;
+    return 0;
+}
+
+/* procura o indice associado ao id; retorna -1 se nao encontrar */
+static int plist_htable_get(const PatientList *pl, const char *key) {
+    if (!pl || !pl->htable || !key) return -1;
+    unsigned long h = str_hash(key) % pl->hcap;
+    struct PlHashEntry *e = pl->htable[h];
+    while (e) {
+        if (strcmp(e->key, key) == 0) return e->idx;
+        e = e->next;
+    }
+    return -1;
+}
+
+/* remove o mapeamento para 'key' da tabela hash (liberta memoria associada) */
+static void plist_htable_remove(PatientList *pl, const char *key) {
+    if (!pl || !pl->htable || !key) return;
+    unsigned long h = str_hash(key) % pl->hcap;
+    struct PlHashEntry **pe = &pl->htable[h];
+    while (*pe) {
+        if (strcmp((*pe)->key, key) == 0) {
+            struct PlHashEntry *rem = *pe;
+            *pe = rem->next;
+            free(rem->key);
+            free(rem);
+            return;
+        }
+        pe = &((*pe)->next);
+    }
+}
 
 /* Helpers estáticos */
 /* Expande a capacidade interna do array de pacientes.
@@ -69,6 +164,8 @@ static void plist_init(PatientList *pl) {
     pl->data = NULL;
     pl->size = 0;
     pl->cap = 0;
+    pl->htable = NULL;
+    pl->hcap = 0;
 }
 
 /* Liberta memórias associadas aos pacientes e aos historicos (history_destroy)
@@ -76,6 +173,9 @@ static void plist_init(PatientList *pl) {
 static void plist_free(PatientList *pl) {
     if (!pl) 
         return;
+
+    /* libera tabela hash primeiro */
+    plist_htable_free(pl);
 
     if (pl->data) {
         for (size_t i = 0; i < pl->size; ++i) {
@@ -100,14 +200,14 @@ static Patient *plist_get(PatientList *pl, const char *id) {
 
 /* Pesquisa linear por ID, retorna indice ou -1 */
 int plist_find_index(const PatientList *pl, const char *id) {
-    if (!pl || !id) 
-        return -1;
-
-    for (size_t i = 0; i < pl->size; ++i) {
-        if (strcmp(pl->data[i].id, id) == 0)
-            return (int)i;
+    if (!pl || !id) return -1;
+    /* usa tabela hash para busca O(1) se inicializada */
+    if (pl->htable) {
+        return plist_htable_get(pl, id);
     }
-
+    /* fallback para busca linear */
+    for (size_t i = 0; i < pl->size; ++i)
+        if (strcmp(pl->data[i].id, id) == 0) return (int)i;
     return -1;
 }
 
@@ -141,6 +241,15 @@ int plist_insert(PatientList *pl, const char *id, const char *name) {
     }
     p->called = false;
 
+    /* garante que a tabela hash existe (capacidade inicial pequena) */
+    if (!pl->htable) {
+        /* escolhe um número de buckets (potência de dois) em relação ao tamanho esperado */
+        size_t buckets = 256;
+        (void)plist_htable_init(pl, buckets);
+    }
+    /* adiciona um mapeamento pelo id -> índice (pl->size-1) */
+    (void)plist_htable_put(pl, p->id, (int)(pl->size - 1));
+    
     return 0;
 }
 
@@ -160,12 +269,20 @@ int plist_remove(PatientList *pl, const char *id) {
         return -1;
     }
 
-    /* remover histórico do paciente a ser excluído e substituir pelo último elemento */
+    /* remove o histórico do paciente a ser excluído e substituir pelo último elemento */
     if (pl->data[idx].hist) {
         history_destroy(pl->data[idx].hist);
         pl->data[idx].hist = NULL;
     }
-    pl->data[idx] = pl->data[pl->size - 1];
+    /* remove da hash primeiro */
+    plist_htable_remove(pl, pl->data[idx].id);
+
+    if ((size_t)idx != pl->size - 1) {
+        /* movimenta o último para idx e atualiza a hash para o id movido */
+        pl->data[idx] = pl->data[pl->size - 1];
+        /* atualiza a entrada da hash para o id movido para o novo índice */
+        (void)plist_htable_put(pl, pl->data[idx].id, idx);
+    }
     pl->size--;
     
     return 0;
@@ -190,16 +307,16 @@ void plist_print(const PatientList *pl) {
         return;
 
     /* imprimir size_t de forma portável usando unsigned long cast */
-    printf("Pacientes registrados: %lu\n", (unsigned long)pl->size);
+    util_printf("Pacientes registrados: %lu\n", (unsigned long)pl->size);
 
     if (pl->size == 0) { 
-        printf("Nenhum paciente registrado.\n"); 
+        util_printf("Nenhum paciente registrado.\n");
         return; 
     }
     
     for (size_t i = 0; i < pl->size; ++i) {
         int hcount = pl->data[i].hist ? history_size(pl->data[i].hist) : 0;
-        printf("- ID: %s | Nome: %s | Procedimentos: %d | Chamado: %s\n",
+        util_printf("- ID: %s | Nome: %s | Procedimentos: %d | Chamado: %s\n",
                pl->data[i].id, pl->data[i].name, hcount,
                pl->data[i].called ? "SIM" : "NAO");
     }
@@ -212,6 +329,7 @@ PatientList* plist_create(void) {
         return NULL;
 
     plist_init(pl);
+    /* inicializa tabela hash de forma preguiçosa na primeira inserção */
     return pl;
 }
 
