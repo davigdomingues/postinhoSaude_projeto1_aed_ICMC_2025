@@ -1,5 +1,4 @@
-/* Explicação detalhada de main.c
-
+/* 
 Este código contém a função main() da aplicação "postinho de saúde".
 Objetivo geral:
 - Gerir uma lista de pacientes (pl) e uma fila de espera (q).
@@ -89,25 +88,40 @@ Observações de integração:
 #include "io.h" // header para salvar/carregar
 #include "util.h" // header com read_line()
 #include "clear_screen.h" // header para limpar a tela
+/* locale / widechar suporte para nomes acentuados */
+#include <locale.h>
+#include <wchar.h>
+#include <wctype.h>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 /* Helpers locais para melhorar legibilidade */
+
+/* Imprime o menu principal no terminal (sem lógica de leitura)
+   Esta funcao so apresenta as opcoes disponiveis para o usuario */
 static void show_menu(void) {
     printf("\nMenu:\n");
     printf("1. Registrar paciente\n");
-    printf("2. Registrar óbito de paciente\n");
-    printf("3. Adicionar procedimento ao histórico\n");
-    printf("4. Desfazer último procedimento\n");
+    printf("2. Registrar obito de paciente\n");
+    printf("3. Adicionar procedimento ao historico\n");
+    printf("4. Desfazer ultimo procedimento\n");
     printf("5. Chamar paciente para atendimento\n");
     printf("6. Mostrar fila de espera\n");
-    printf("7. Mostrar histórico do paciente\n");
+    printf("7. Mostrar historico do paciente\n");
     printf("8. Sair\n");
     printf("Escolha: ");
 }
 
+/* Mostra informacoes carregadas do ficheiro de dados:
+   - lista de pacientes (resumo)
+   - historicos por paciente
+   - fila de espera com nomes resolvidos via PatientList
+   Em caso de erro no carregamento, informa o usuario e inicializa vazio */
 static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
-    /* Tentar carregar dados persistidos (se existir) */
+    /* Tenta carregar dados persistidos (se existir) */
     if (load_r == 0) {
-        /* Mostrar resumidamente o estado carregado para o utilizador antes de limpar */
+        /* Mostra resumidamente o estado carregado para o utilizador antes de limpar */
         printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
 
         if (plist_size(pl) > 0) {
@@ -121,7 +135,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                 if (plist_get_name_by_index(pl, pi, pname, sizeof(pname)) != 0) strncpy(pname, "(desconhecido)", sizeof(pname));
 
                 int hsz = plist_history_size_by_index(pl, pi);
-                printf("\nHistórico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
+                printf("\nHistorico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
                 for (int hi = 0; hi < hsz; ++hi) {
                     char hline[PROC_MAX_LEN + 1];
                     if (plist_history_get_by_index(pl, pi, hi, hline, sizeof(hline)) == 0)
@@ -144,7 +158,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                 if (queue_get_id_by_index(q, qi, qid, sizeof(qid)) != 0) continue;
                 if (plist_get_name_by_id(pl, qid, qname, sizeof(qname)) != 0)
                     strncpy(qname, "(desconhecido)", sizeof(qname));
-                printf("%d: %s — %s\n", qi + 1, qid, qname);
+                printf("%d: %s - %s\n", qi + 1, qid, qname);
             }
         } 
         
@@ -161,7 +175,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
             clear_screen();
         }
     } else if (load_r == -1) {
-        /* arquivo inexistente: iniciar com estruturas vazias (normal em primeira execução) */
+        /* arquivo inexistente: inicialização com estruturas vazias (normal em primeira execução) */
         printf("Nenhum arquivo de dados encontrado.\n");
         message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
     } else {
@@ -170,15 +184,30 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
     }
 
     /* Mensagem de boas-vindas simples (sem limpar novamente imediatamente) */
-    message_and_clear("Bem-vindo ao PostinhoSUS — Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
+    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestao (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
+/* Funcao principal do programa simplificada:
+   - inicializa estruturas (PatientList, Queue)
+   - tenta carregar dados persistidos (io_load)
+   - executa loop de menu interpretando as opcoes 1..8
+   - delega operacoes aos modulos (plist_*, queue_*, history_*, io_*)
+   - salva condicionalmente e libera recursos antes de terminar
+*/
 int main(){
+    /* configuração local para suporte à dados multibyte (acentuados) */
+    setlocale(LC_ALL, "");
+#if defined(_WIN32)
+    /* opcional: definir CP do console para UTF-8 se o terminal suportar */
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+
     PatientList *pl = plist_create();
     Queue       *q  = queue_create(WAIT_CAP);
     
     if (!pl || !q) {
-        fprintf(stderr, "Erro de inicialização.\n");
+        fprintf(stderr, "Erro de inicializacao.\n");
         return 1;
     }
 
@@ -200,10 +229,11 @@ int main(){
 
         if (opc == 1) {
             char id[MAX_ID_LEN + 1], name[MAX_NAME_LEN + 1];
+            int reinInserted = 0; /* flag: se 1 pula cadastro pois tratou reinsercao/aviso */
             /* Ler ID manualmente, aceitar apenas dígitos e evitar duplicata.
                Faz trim de espaços, usa strnlen e valida cada caractere com isdigit. */
             for (;;) {
-                printf("ID (somente dígitos): ");
+                printf("ID (somente digitos): ");
                 read_line(id, sizeof(id));
 
                 /* rejeita imediatamente se a entrada foi maior que o buffer */
@@ -214,11 +244,11 @@ int main(){
 
                 /* trim: remover espaços iniciais e finais */
                 size_t start = 0;
-                while (id[start] && isspace((unsigned char)id[start])) 
+                while (id[start] && isspace((unsigned char)id[start]))
                     ++start;
 
                 size_t end = strnlen(id, MAX_ID_LEN + 1);
-                while (end > start && isspace((unsigned char)id[end - 1])) 
+                while (end > start && isspace((unsigned char)id[end - 1]))
                     --end;
 
                 if (start != 0 || end != strlen(id)) {
@@ -242,21 +272,42 @@ int main(){
                 int all_digits = 1;
                 for (size_t i = 0; i < len; ++i)
                     if (!isdigit((unsigned char)id[i])) { all_digits = 0; break; }
-                
+
                 if (!all_digits) {
-                    message_and_clear("ID inválido. Use apenas caracteres numéricos (0-9).", MSG_WAIT_SHORT);
+                    message_and_clear("ID invalido. Use apenas caracteres numericos (0-9).", MSG_WAIT_SHORT);
                     continue;
                 }
 
+                /* Se o ID ja esta cadastrado, oferecer reinsercao na fila:
+                   - se ja estiver na fila, avisar e retornar ao menu
+                   - se fila cheia, avisar e retornar ao menu
+                   - senao, enfileirar e informar "paciente reinserido na fila!" */
                 if (plist_find_index(pl, id) >= 0) {
-                    message_and_clear("ID já registrado. Informe outro ID.", MSG_WAIT_SHORT);
-                    continue;
+                    if (queue_contains(q, id)) {
+                        message_and_clear("Paciente ja esta na fila. Retornando ao menu...", MSG_WAIT_SHORT);
+                        reinInserted = 1; /* tratou a situacao, nao cadastrar */
+                        break;
+                    } else if (queue_is_full(q)) {
+                        message_and_clear("Fila cheia. Nao foi possivel inserir.", MSG_WAIT_SHORT);
+                        reinInserted = 1; /* nao cadastrar */
+                        break;
+                    } else {
+                        queue_enqueue(q, id);
+                        message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
+                        reinInserted = 1; /* ja reinserido, pular cadastro */
+                        break;
+                    }
                 }
 
                 break;
             }
 
-            /* Lê e valida nome: apenas letras e espaços (até aceitar) */
+            /* Se ja tratamos reinsercao/aviso, retornar ao menu sem tentar cadastrar nome */
+            if (reinInserted) {
+                continue;
+            }
+
+            /* Lê e valida nome: aceita letras (até mesmo as acentuadas) e espaços usando mbrtowc/iswalpha */
             for (;;) {
                 printf("Nome: "); read_line(name, sizeof(name));
 
@@ -266,11 +317,25 @@ int main(){
                 }
 
                 int valid = 1;
-                for (const unsigned char *p = (const unsigned char *)name; *p; ++p)
-                    if (!isalpha(*p) && *p != ' ') { valid = 0; break; }
+                mbstate_t st;
+                memset(&st, 0, sizeof(st));
+                const char *p = name;
+                while (*p) {
+                    wchar_t wc;
+                    size_t n = mbrtowc(&wc, p, MB_CUR_MAX, &st);
+                    if (n == (size_t)-1 || n == (size_t)-2) { valid = 0; break; }
+                    /* aceita letras e espaço */
+                    if (iswalpha(wc) || iswspace(wc)) {
+                        p += n == 0 ? 1 : n;
+                        continue;
+                    } else {
+                        valid = 0;
+                        break;
+                    }
+                }
 
                 if (valid) break;
-                message_and_clear("Nome inválido. Use apenas letras e espaços.", MSG_WAIT_SHORT);
+                message_and_clear("Nome invalido. Use apenas letras e espacos.", MSG_WAIT_SHORT);
             }
 
             int r = plist_insert(pl, id, name);
@@ -283,55 +348,55 @@ int main(){
             }
 
             if (queue_is_full(q))
-                printf("Fila cheia. Não foi possível inserir.\n");
+                printf("Fila cheia. Nao foi possivel inserir.\n");
             else if (queue_contains(q, id))
-                printf("Paciente já está na fila de espera.\n");
+                printf("Paciente ja esta na fila de espera.\n");
             else {
                 queue_enqueue(q, id);
                 printf("Paciente inserido na fila.\n");
             }
 
-            message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_SHORT);
+            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_SHORT);
 
         } else if (opc == 2) {
             char id[MAX_ID_LEN + 1];
-            printf("ID do óbito: "); read_line(id, sizeof(id));
+            printf("ID do obito: "); read_line(id, sizeof(id));
 
             if (plist_find_index(pl, id) < 0) {
-                message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (queue_contains(q, id)) {
-                printf("Óbito proibido.\n");
-                message_and_clear("Paciente ainda está na fila. Retornando ao menu...", MSG_WAIT_SHORT);
+                printf("Obito proibido.\n");
+                message_and_clear("Paciente ainda esta na fila. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (!plist_is_called(pl, id)) {
-                printf("Óbito proibido.\n");
-                message_and_clear("Paciente não foi chamado. Retornando ao menu...", MSG_WAIT_SHORT);
+                printf("Obito proibido.\n");
+                message_and_clear("Paciente nao foi chamado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (plist_remove(pl, id) == 0)
-                printf("Óbito registrado e dados removidos (LGPD).\n");
+                printf("Obito registrado e dados removidos (LGPD).\n");
             else
                 printf("Falha ao remover registro do paciente.\n");
 
-            message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 3) {
             char id[MAX_ID_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
             if (plist_find_index(pl, id) < 0) {
-                message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (plist_history_is_full(pl, id)) {
-                message_and_clear("Histórico cheio. Retornando ao menu...", MSG_WAIT_SHORT);
+                message_and_clear("Historico cheio. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
@@ -341,12 +406,12 @@ int main(){
             read_line(proc, sizeof(proc));
 
             if (read_line_truncated()) {
-                message_and_clear("Descrição muito longa. Tente novamente.", MSG_WAIT_SHORT);
+                message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (proc[0] == '\0') {
-                message_and_clear("Descrição vazia. Tente novamente.", MSG_WAIT_SHORT);
+                message_and_clear("Descricao vazia. Tente novamente.", MSG_WAIT_SHORT);
                 continue;
             }
 
@@ -381,29 +446,29 @@ int main(){
             if (plist_history_push(pl, id, item) == 0)
                 printf("Procedimento adicionado.\n");
             else
-                printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
+                printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
 
-            message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 4) {
             char id[MAX_ID_LEN + 1], out[PROC_MAX_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
             if (plist_find_index(pl, id) < 0) {
-                message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (plist_history_pop(pl, id, out, sizeof(out)) == 0)
                 printf("Procedimento desfeito: %s\n", out);
             else
-                printf("Não há procedimento a desfazer.\n");
+                printf("Nao ha procedimento a desfazer.\n");
 
-            message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 5) {
             char id[MAX_ID_LEN + 1];
-            printf("Chamando próximo...\n");
+            printf("Chamando proximo...\n");
 
             if (queue_dequeue(q, id, sizeof(id)) == 0) {
                 char name[MAX_NAME_LEN + 1];
@@ -415,7 +480,7 @@ int main(){
             } else
                 printf("Fila vazia.\n");
 
-            message_and_clear("Operação concluída. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 6) {
             /* Imprimir fila com nomes associados aos IDs */
@@ -423,14 +488,14 @@ int main(){
             if (qsize == 0) {
                 message_and_clear("Fila vazia. Retornando ao menu...", MSG_WAIT_SHORT);
             } else {
-                printf("Fila de espera (total=%d):\n", qsize);
+                printf("Fila de espera (total = %d):\n", qsize);
                 for (int i = 0; i < qsize; ++i) {
                     char id[MAX_ID_LEN + 1];
                     char name[MAX_NAME_LEN + 1];
                     if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
                     if (plist_get_name_by_id(pl, id, name, sizeof(name)) != 0)
                         strncpy(name, "(desconhecido)", sizeof(name));
-                    printf("%d: %s — %s\n", i + 1, id, name);
+                    printf("%d: %s - %s\n", i + 1, id, name);
                 }
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
@@ -439,8 +504,8 @@ int main(){
             printf("ID: "); read_line(id, sizeof(id));
 
             if (plist_find_index(pl, id) < 0) {
-                printf("Paciente não encontrado.\n");
-                message_and_clear("Paciente não encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
+                printf("Paciente nao encontrado.\n");
+                message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
@@ -464,17 +529,17 @@ int main(){
             int qsize = queue_size(q);
             if (n_pat > 0 || qsize > 0 || load_r == 0) {
                 if (io_save(DATA_FILE, pl, q) == 0)
-                    printf("Dados salvos em %s. Até breve!\n", DATA_FILE);
+                    printf("Dados salvos em %s. Ate breve.\n", DATA_FILE);
                 else
                     printf("Erro ao salvar dados.\n");
             } else {
-                printf("Nenhum dado para salvar. Arquivo não foi alterado.\n");
+                printf("Nenhum dado para salvar. Arquivo nao foi alterado.\n");
             }
  
              break;
         } else {
-            printf("Opção inválida.\n");
-            message_and_clear("Opção inválida. Retornando ao menu...", MSG_WAIT_SHORT);
+            printf("Opcao invalida.\n");
+            message_and_clear("Opcao invalida. Retornando ao menu...", MSG_WAIT_SHORT);
         }
     }
 
