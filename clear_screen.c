@@ -5,7 +5,7 @@
  * Observações:
  * - Apenas efeitos na UI; não modifica nem persiste dados do programa.
  */
-
+ 
 #define _XOPEN_SOURCE 600
 #include "clear_screen.h"
 #include <stdlib.h>
@@ -15,7 +15,7 @@
 #include <windows.h>
 #else
 // POSIX -> usleep()
-#include <unistd.h>    /* Biblioteca POSIX para usleep(), que suspende a execução por microssegundos */
+#include <unistd.h>    /* Biblioteca POSIX para usleep(), que suspende a execução por microsegundos */
 #include <sys/types.h> /* useconds_t */
 #endif
 

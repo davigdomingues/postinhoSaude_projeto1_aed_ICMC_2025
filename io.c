@@ -13,15 +13,13 @@
  *
  * Função auxiliar estática:
  * - chomp(char *s)
- *     Removes line terminators ('\n' and '\r') from the end of a string read with fgets.
+ *     Remove terminadores de linha ('\n' and '\r') do fim de strings lidas com fgets.
  *
  * Dependências:
- * - Patient tem campos id[], name[] e History hist.
- * - History expõe `.top` (índice do topo, -1 se vazio) e `.items[]` (array de strings).
- * - PatientList e Queue expõem campos e funções utilizadas (plist_insert, plist_get,
- *   queue_enqueue) e tamanhos/capacidades (q->head, q->size, q->cap).
- * - As constantes MAX_ID_LEN, MAX_NAME_LEN, PROC_MAX_LEN são definidas em config.h
- *   e determinam os tamanhos dos buffers de leitura.
+ * - PatientList e Queue expõem funções públicas usadas por este módulo (ex.: plist_insert,
+ *   plist_history_push, plist_history_size_by_index, queue_enqueue, queue_size, queue_get_id_by_index).
+ * - IO não acessa diretamente a campos internos de History; usa apenas as APIs públicas
+ *   (history_* ou wrappers plist_history_*) para obter/escrever dados do histórico.
  *
  * Observações de persistência:
  * - io_save implementa gravação segura: escreve para path + ".tmp" e só substitui

@@ -17,12 +17,13 @@
  *
  * Dependências e pressupostos:
  * - Usa Patient, History e constantes de config (MAX_ID_LEN, MAX_NAME_LEN).
- * - Pressupõe existência de history_init(&p->hist) para inicializar o histórico.
- * - A impressão assume que History possui campo `top` com o índice do topo (top >= -1).
+ * - Pressupõe existência de history_create/history_destroy e funções da API history_*
+ *   para manipular o histórico; PatientList NÃO acessa campos internos do tipo
+ *   History (usa apenas as funções públicas).
  *
  * Observações de integração:
  * - PatientList delega persistência em disco para io.c; funções aqui são apenas manipulação em memória.
- * - Ao remover um paciente chamamos history_free() para limpar o histórico antes de sobrescrever/soltar memória.
+ * - Ao remover um paciente chamamos history_destroy() para limpar o histórico antes de sobrescrever/soltar memória.
  */
 
 #include <stdio.h>
@@ -461,6 +462,4 @@ int plist_history_get_by_index(const PatientList *pl, size_t patient_idx, int hi
 
     if (!pl->data[patient_idx].hist) return -1;
     return history_get_by_index(pl->data[patient_idx].hist, hist_idx, out, out_size);
-    
-    return 0;
 }

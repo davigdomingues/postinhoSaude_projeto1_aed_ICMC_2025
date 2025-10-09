@@ -3,20 +3,21 @@ Este código contém a função main() da aplicação "postinho de saúde".
 Objetivo geral:
 - Gerir uma lista de pacientes (pl) e uma fila de espera (q).
 - Fornecer um menu simples em linha de comando para registrar pacientes,
-  dar alta, adicionar/desfazer procedimentos no histórico, chamar o próximo,
-  mostrar a fila, exibir histórico e salvar os dados ao sair.
+  registrar óbito (com restrições), adicionar/desfazer procedimentos no histórico,
+  chamar o próximo, mostrar a fila, exibir histórico e salvar os dados ao sair.
 
 Inclusões e módulos:
 - config.h: constantes de configuração (tamanhos máximos, capacidade da fila).
 - patient_list.h: interface para manipular a lista de pacientes (inserir, buscar, obter, liberar).
-- queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, remover, verificar existência/cheia, imprimir, liberar).
+- queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, verificar existência/cheia, liberar).
 - history.h: interface para o histórico de procedimentos por paciente (push, pop, verificar cheio).
 - io.h: funções para salvar/carregar dados persistentes (io_save, io_load).
-- util.h: utilitários de I/O, por exemplo read_line() para ler linhas com segurança.
+- util.h: utilitários de I/O (read_line, util_printf, format_timestamp).
 
-Estruturas globais:
-- PatientList pl;  // armazena pacientes (id, nome, histórico, ...)
-- Queue q;         // fila de espera com capacidade WAIT_CAP
+Estruturas usadas em runtime (alocadas dinamicamente):
+- PatientList *pl;  // ponteiro para a lista de pacientes alocada por plist_create()
+- Queue *q;         // ponteiro para a fila de espera alocada por queue_create()
+- clear_screen.h: utilidades de UI (limpar tela, mensagens temporizadas).
 
 Fluxo principal (main):
 1. Inicialização:
@@ -51,7 +52,7 @@ Fluxo principal (main):
         - Usa plist_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
 
      6) Mostrar fila:
-        - queue_print(&q) imprime os elementos da fila em ordem (nesse caso, foi optada por uma impressão padronizada para mostrar a fila, presente na main).
+        - lista a fila resolvendo nomes via PatientList (sem usar função de impressão do TAD).
         - Se a fila estiver vazia, avisa o usuário.
 
      7) Mostrar histórico:

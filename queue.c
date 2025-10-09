@@ -9,6 +9,8 @@
 
    Observação de persistência:
    - A representação interna é serializada/deserializada por io.c; este ficheiro não realiza I/O em disco.
+   - Para acelerar membership (queue_contains) a implementação usa um conjunto baseado em hash
+     (encadeamento separado), transparente para os utilizadores do TAD.
 */
 
 struct Queue {
@@ -166,31 +168,6 @@ void queue_print(const Queue *q) {
     
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
         util_printf("%d: %s\n", i + 1, q->ids[idx]);
-}
-
-/* Remove um id arbitrario:
-   - procura o id iterando a partir de head (wrap-around)
-   - ao encontrar desloca os elementos subsequentes uma posicao para a esquerda,
-     preservando a ordem logica da fila (operacao O(n))
-   - decrementa size
-*/
-int queue_remove(Queue *q, const char *id) {
-    if (!q || !id) return -1;
-    for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap) {
-        if (strcmp(q->ids[idx], id) == 0) {
-            /* desloca elementos para a esquerda mantendo circularidade */
-            for (int j = i; j < q->size - 1; ++j) {
-                int from = (q->head + j + 1) % q->cap;
-                int to = (q->head + j) % q->cap;
-                strncpy(q->ids[to], q->ids[from], MAX_ID_LEN + 1);
-            }
-            q->size--;
-            /* remove do conjunto de membros */
-            if (q->members) qset_remove(q, id);
-            return 0;
-        }
-    }
-    return -1;
 }
 
 /* Criacao / destruicao da fila (aloca o TAD opaco) */

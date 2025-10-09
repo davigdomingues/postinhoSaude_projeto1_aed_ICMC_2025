@@ -49,7 +49,7 @@
 
 /*
  * io_save/io_load formato (texto):
- * 1) number_of_patients (size_t) em sua própria linha
+ * 1) number_of_patients (unsigned long) em sua própria linha
  * 2) para cada paciente:
  *    id (linha)
  *    name (linha)
