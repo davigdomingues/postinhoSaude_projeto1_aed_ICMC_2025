@@ -11,7 +11,7 @@ Inclusões e módulos:
 - patient_list.h: interface para manipular a lista de pacientes (inserir, buscar, obter, liberar).
 - queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, remover, verificar existência/cheia, imprimir, liberar).
 - history.h: interface para o histórico de procedimentos por paciente (push, pop, verificar cheio).
-- io.h: funções para salvar/carregar dados persistentes (io_save, possivelmente io_load).
+- io.h: funções para salvar/carregar dados persistentes (io_save, io_load).
 - util.h: utilitários de I/O, por exemplo read_line() para ler linhas com segurança.
 
 Estruturas globais:
@@ -20,8 +20,8 @@ Estruturas globais:
 
 Fluxo principal (main):
 1. Inicialização:
-   - plist_init(&pl): prepara a estrutura da lista de pacientes.
-   - queue_init(&q, WAIT_CAP): cria a fila com capacidade definida em config.h.
+   - plist_create(): prepara a estrutura da lista de pacientes.
+   - queue_create(WAIT_CAP): cria a fila com capacidade definida em config.h.
 
 2. Loop do menu:
    - Exibe opções numeradas de 1 a 8.
@@ -31,6 +31,7 @@ Fluxo principal (main):
      1) Registrar paciente:
         - Lê ID e verifica se já existe (plist_find_index).
         - Se não existir, lê nome e insere (plist_insert).
+        - Se o paciente já existir, ele pode ser reinscrito na fila, desde que seja informado o ID correto, a primeira vista.
         - Tenta enfileirar o paciente (queue_enqueue) com checagens: fila cheia (queue_is_full) ou paciente já na fila (queue_contains).
 
      2) Dar alta:
@@ -50,7 +51,7 @@ Fluxo principal (main):
         - Usa plist_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
 
      6) Mostrar fila:
-        - queue_print(&q) imprime os elementos da fila em ordem.
+        - queue_print(&q) imprime os elementos da fila em ordem (nesse caso, foi optada por uma impressão padronizada para mostrar a fila, presente na main).
         - Se a fila estiver vazia, avisa o usuário.
 
      7) Mostrar histórico:
@@ -67,20 +68,20 @@ Tratamento de erros e convenções:
 - Mensagens informativas são exibidas ao usuário em cada caminho de execução.
 
 Limpeza:
-- Antes de terminar, a aplicação chama queue_free(&q) e plist_free(&pl) para libertar recursos dinâmicos alocados pelos módulos.
+- Antes de terminar, a aplicação chama queue_destroy(q) e plist_destroy(pl) para libertar recursos dinâmicos alocados pelos módulos.
 
 Observações de integração:
 - A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_list, queue, history, io, util).
 - Persistência: main.c chama io_load(DATA_FILE, ...) no arranque e io_save(DATA_FILE, ...) ao sair.
   * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
   * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
-- UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo utilizador.
+- UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo usuário.
 */
 
 #include <stdio.h> // para printf() e FILE
 #include <stdlib.h> // para atoi() e alocação
+#include <ctype.h> // para isdigit() e isspace()
 #include <string.h> // para manipular strings mais facilmente
-#include <ctype.h> // para isalpha()
 #include "config.h" // header com constantes de configuração
 #include "patient_list.h" // header da lista de pacientes
 #include "queue.h" // header da fila
@@ -88,6 +89,7 @@ Observações de integração:
 #include "io.h" // header para salvar/carregar
 #include "util.h" // header com read_line()
 #include "clear_screen.h" // header para limpar a tela
+
 /* locale / widechar suporte para nomes acentuados */
 #include <locale.h>
 #include <wchar.h>
@@ -99,7 +101,7 @@ Observações de integração:
 /* Helpers locais para melhorar legibilidade */
 
 /* Imprime o menu principal no terminal (sem lógica de leitura)
-   Esta funcao so apresenta as opcoes disponiveis para o usuario */
+   Esta função só apresenta as opções disponíveis para o usuário */
 static void show_menu(void) {
     printf("\nMenu:\n");
     printf("1. Registrar paciente\n");
@@ -113,11 +115,11 @@ static void show_menu(void) {
     printf("Escolha: ");
 }
 
-/* Mostra informacoes carregadas do ficheiro de dados:
+/* Mostra informações carregadas do ficheiro de dados:
    - lista de pacientes (resumo)
-   - historicos por paciente
+   - históricos por paciente
    - fila de espera com nomes resolvidos via PatientList
-   Em caso de erro no carregamento, informa o usuario e inicializa vazio */
+   Em caso de erro no carregamento, informa o usuário e inicializa vazio */
 static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
     if (load_r == 0) {
@@ -127,7 +129,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
         if (plist_size(pl) > 0) {
             plist_print(pl);
 
-            /* Mostrar histórico detalhado de cada paciente */
+            /* Mostra o histórico detalhado de cada paciente */
             for (size_t pi = 0; pi < plist_size(pl); ++pi) {
                 char pid[MAX_ID_LEN + 1];
                 char pname[MAX_NAME_LEN + 1];
@@ -183,7 +185,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
         message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
     }
 
-    /* Mensagem de boas-vindas simples (sem limpar novamente imediatamente) */
+    /* Mensagem de boas-vindas simples (sem limpar novamente de forma imediata) */
     message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestao (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
@@ -239,8 +241,8 @@ int main(){
 
         if (opc == 1) {
             char id[MAX_ID_LEN + 1], name[MAX_NAME_LEN + 1];
-            int reinInserted = 0; /* flag: se 1 pula cadastro pois tratou reinsercao/aviso */
-            /* Ler ID manualmente, aceitar apenas dígitos e evitar duplicata.
+            int reinInserted = 0; /* flag: se 1, pula cadastro pois tratou reinsercao/aviso */
+            /* Lê ID manualmente, aceita apenas dígitos e evita duplicata.
                Faz trim de espaços, usa strnlen e valida cada caractere com isdigit. */
             for (;;) {
                 printf("ID (somente digitos): ");
@@ -288,25 +290,25 @@ int main(){
                     continue;
                 }
 
-                /* Se o ID ja esta cadastrado, oferecer reinsercao na fila:
-                   - se ja estiver na fila, avisar e retornar ao menu
-                   - se fila cheia, avisar e retornar ao menu
-                   - senao, enfileirar e informar "paciente reinserido na fila!" */
+                /* Se o ID já está cadastrado, oferecer reinsercao na fila:
+                   - se já estiver na fila, avisa e retornar ao menu
+                   - se fila cheia, avisa e retornar ao menu
+                   - senao, enfileira e informa "paciente reinserido na fila!" */
                 if (plist_find_index(pl, id) >= 0) {
                     if (queue_contains(q, id)) {
                         message_and_clear("Paciente ja esta na fila. Retornando ao menu...", MSG_WAIT_SHORT);
-                        reinInserted = 1; /* tratou a situacao, nao cadastrar */
+                        reinInserted = 1; /* tratou a situacao, não cadastrar */
                         break;
                     } else if (queue_is_full(q)) {
                         message_and_clear("Fila cheia. Nao foi possivel inserir.", MSG_WAIT_SHORT);
-                        reinInserted = 1; /* nao cadastrar */
+                        reinInserted = 1; /* não cadastrar */
                         break;
                     } else {
                         queue_enqueue(q, id);
-                        /* paciente voltou para a fila -> marcar como nao chamado */
+                        /* paciente voltou para a fila -> marcar como não chamado */
                         (void)plist_set_called(pl, id, false);
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
-                        reinInserted = 1; /* ja reinserido, pular cadastro */
+                        reinInserted = 1; /* já reinserido, pular cadastro */
                         break;
                     }
                 }
@@ -314,13 +316,13 @@ int main(){
                 break;
             }
 
-            /* Se ja tratamos reinsercao/aviso, retornar ao menu sem tentar cadastrar nome */
+            /* Se já tratamos reinsercao/aviso, retorna ao menu sem tentar cadastrar nome */
             if (reinInserted) {
                 continue;
             }
 
-            /* Lê e aceita nome arbitrário (qualquer string nao vazia).
-               Observacao: aceita acentos e outros caracteres sem validação por caractere.
+            /* Lê e aceita nome arbitrário (qualquer string não vazia).
+               Observação: aceita acentos e outros caracteres sem validação por caractere.
                Rejeita nomes truncados ou vazios. */
             for (;;) {
                 printf("Nome: "); read_line(name, sizeof(name));
@@ -331,7 +333,7 @@ int main(){
                     continue;
                 }
 
-                /* nome vazio nao e aceito */
+                /* nome vazio não é aceito */
                 if (name[0] == '\0') {
                     message_and_clear("Nome vazio. Informe novamente.", MSG_WAIT_SHORT);
                     continue;
@@ -360,7 +362,7 @@ int main(){
 
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_SHORT);
 
-        } else if (opc == 2) {
+        } else if (opc == 2) { // Para o trabalho, foi escolhido um cenário ideal em que o paciente só morreria, caso não estivesse na fila.
             char id[MAX_ID_LEN + 1];
             printf("ID do obito: "); read_line(id, sizeof(id));
 
@@ -402,7 +404,7 @@ int main(){
                 continue;
             }
 
-            /* lê descrição com validações e prefixar timestamp via util::format_timestamp */
+            /* lê descrição com validações e prefixa timestamp via util::format_timestamp */
             char proc[PROC_MAX_LEN + 1];
             printf("Procedimento (ate %d chars): ", PROC_MAX_LEN);
             read_line(proc, sizeof(proc));
