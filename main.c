@@ -80,7 +80,7 @@ Observações de integração:
 
 #include <stdio.h> // para printf() e FILE
 #include <stdlib.h> // para atoi() e alocação
-#include <ctype.h> // para isdigit() e isspace()
+#include <ctype.h> // para isdigit() e ispace()
 #include <string.h> // para manipular strings mais facilmente
 #include "config.h" // header com constantes de configuração
 #include "patient_list.h" // header da lista de pacientes
@@ -198,21 +198,21 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
 */
 int main(){
     /* configuração local para suporte à dados multibyte (acentuados) */
+    util_setup_locale();
+#if 0
+    /* antigo bloco mantido aqui apenas como referência (removido) */
     /* define locale a partir do ambiente; preferir UTF-8 quando disponível */
     setlocale(LC_ALL, "");
 #if defined(_WIN32)
-    /* força codepage do console para UTF-8 no Windows (melhora exibição de acentos no cmd.exe) */
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-    /* também altera code page do host via chcp (silencioso) para compatibilidade com consoles antigos */
     system("chcp 65001 > nul");
 #else
-    /* tenta assegurar que há um locale UTF-8 quando não definido (melhora exibição em terminais Unix) */
     if (!getenv("LANG") && !getenv("LC_ALL")) {
-        /* esforço simples, não sobrescreve configuração do utilizador se já existir */
         setenv("LC_ALL", "en_US.UTF-8", 0);
         setlocale(LC_ALL, "");
     }
+#endif
 #endif
 
     PatientList *pl = plist_create();

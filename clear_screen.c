@@ -15,7 +15,8 @@
 #include <windows.h>
 #else
 // POSIX -> usleep()
-#include <unistd.h> // Biblioteca POSIX para usleep(), que suspende a execução por microsegundos
+#include <unistd.h>    /* Biblioteca POSIX para usleep(), que suspende a execução por microssegundos */
+#include <sys/types.h> /* useconds_t */
 #endif
 
 /* Executa o comando de limpar tela apropriado para a plataforma */
