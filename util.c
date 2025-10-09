@@ -3,7 +3,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <stdlib.h>
 #include <stdarg.h>
+#include <locale.h> /* para setlocale() */
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -149,6 +151,27 @@ int util_printf(const char *fmt, ...) {
     return ret;
 }
 
+/* Configura locale/console para suportar UTF-8 de forma portátil.
+   Usar esta função a partir de main() no início da execução. */
+void util_setup_locale(void) {
+    /* define locale a partir do ambiente; preferir UTF-8 quando disponível */
+    setlocale(LC_ALL, "");
+#if defined(_WIN32)
+    /* força codepage do console para UTF-8 no Windows (melhora exibição de acentos no cmd.exe) */
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    /* também altera code page do host via chcp (silencioso) para compatibilidade com consoles antigos */
+    system("chcp 65001 > nul");
+#else
+    /* tenta assegurar que há um locale UTF-8 quando não definido (melhora exibição em terminais Unix) */
+    if (!getenv("LANG") && !getenv("LC_ALL")) {
+        /* esforço simples, não sobrescreve configuração do utilizador se já existir */
+        setenv("LC_ALL", "en_US.UTF-8", 0);
+        setlocale(LC_ALL, "");
+    }
+#endif
+}
+
 /* Implementações de util.h
  *
  * Observações:
@@ -156,3 +179,14 @@ int util_printf(const char *fmt, ...) {
  * - format_timestamp() usa apis seguras (localtime_r/localtime_s) conforme plataforma.
  * - Este módulo não faz persistência em disco.
  */
+
+#if defined(_WIN32)
+/* Implementação compatível de setenv para o CRT do Windows.
+   Retorna 0 em sucesso, -1 em erro. */
+int setenv(const char *name, const char *value, int overwrite) {
+    if (!name || !value) return -1;
+    if (!overwrite && getenv(name) != NULL) return 0;
+    /* _putenv_s retorna 0 em sucesso */
+    return _putenv_s(name, value) == 0 ? 0 : -1;
+}
+#endif

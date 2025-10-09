@@ -5,13 +5,12 @@
  *     Inicializa a estrutura definindo data = NULL, size = 0, cap = 0.
  *
  * - plist_free(PatientList *pl)
- *     Liberta a memória do array interno pl->data e zera campos; não libera
- *     memórias internas de History (presume que History não aloca ou possui
- *     função própria para liberar, caso necessário deve ser chamada aqui).
+ *     Liberta a memória do array interno pl->data e zera campos; libera também
+ *     os recursos alocados pelo histórico através da API pública de History.
  *
  * - plist_find_index(const PatientList *pl, const char *id)
- *     Procura linearmente pelo paciente com o ID fornecido; retorna índice
- *     (int) se encontrado ou -1 se não encontrado / id inválido.
+ *     Procura pelo paciente com o ID fornecido; retorna índice (int) se encontrado
+ *     ou -1 se não encontrado / id inválido. Implementação usa tabela hash quando disponível.
  *
  * - Patient* plist_get(PatientList *pl, const char *id)
  *     Retorna ponteiro para o paciente com o ID (ou NULL se não encontrar).
@@ -25,17 +24,16 @@
  *      -2 -> entrada inválida (id/name vazios) ou erro de memória (realloc)
  *
  * - int plist_remove(PatientList *pl, const char *id)
- *     Remove o paciente com o ID especificado, substituindo-o pelo último
- *     elemento do array (remoção O(1), não preserva ordem). Retorna 0 sucesso,
- *     -1 se não encontrar.
+ *     Remove o paciente com o ID especificado. Libera o histórico associado via
+ *     history_destroy() e atualiza a tabela interna (remoção O(1) por troca com último).
  *
  * - void plist_print(const PatientList *pl)
  *     Imprime uma lista simples de pacientes com ID, nome e número de procedimentos
- *     (usando p->hist.top + 1 para contar entradas do histórico).
+ *     (obtido através da API pública de histórico).
  *
  * Observações:
  * - Este módulo implementa apenas a gestão em memória de pacientes e históricos.
- * - Persistência em disco é responsabilidade do módulo io (io_save/io_load) — não há I/O em ficheiros aqui.
+ * - Persistência em disco é responsabilidade do módulo io (io_save/io_load).
  */
 
 #ifndef PATIENT_LIST_H

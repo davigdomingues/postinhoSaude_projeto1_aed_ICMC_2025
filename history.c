@@ -17,13 +17,13 @@ struct History {
 };
 
 /* Inicializa uma estrutura History (top = -1) */
-void history_init(History *h) {
+static void history_init(History *h) {
     if (!h) return;
     h->top = -1;
 }
 
 /* Liberacao logica do History (atualmente noop, mas mantido para extensibilidade) */
-void history_free(History *h) {
+static void history_free(History *h) {
     (void)h;
 }
 
@@ -83,7 +83,7 @@ void history_destroy(History *h) {
     free(h);
 }
 
-/* Predicados e utilitarios: is_full, is_empty, size, top, inspect (debug) */
+/* Predicados e utilitarios: is_full, is_empty, size */
 bool history_is_full(const History *h) {
     if (!h) return false;
     return (h->top >= HIST_MAX - 1);

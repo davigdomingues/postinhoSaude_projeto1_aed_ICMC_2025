@@ -3,6 +3,15 @@
 
 #include <stddef.h>
 
+#if defined(_WIN32)
+/* Compatibilidade: declare setenv para que módulos que chamem setenv() linkem
+   com a implementação fornecida em util.c no Windows. */
+int setenv(const char *name, const char *value, int overwrite);
+#endif
+
+/* Configuração de locale e console (UTF-8) — mover do main para util */
+void util_setup_locale(void);
+
 /* Utilitários de I/O locais e timestamp.
  *
  * Observações:

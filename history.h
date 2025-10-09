@@ -6,17 +6,14 @@
 #include "config.h"
 
 /* Nota:
- * - History é um TAD em memória (pilha de procedimentos). 
- * - A serialização do conteúdo do histórico é feita por io.c através de funções de wrapper (plist_history_*).
+ * - History é um TAD em memória (pilha de procedimentos) opaco externamente.
+ * - Uso externo deve ocorrer via history_create/history_destroy e operações públicas
+ *   de push/pop/size/is_full/get_by_index.
  */
 
 typedef struct History History;
 
-void history_init(History *h);
-void history_free(History *h);
-
 int history_push(History *h, const char *proc);
-
 int history_pop(History *h, char *out, size_t out_size);
 
 bool history_is_full(const History *h);

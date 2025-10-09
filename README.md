@@ -21,7 +21,7 @@ O arquivo `proj1VersaoAtualizada.pdf` acompanhado neste repositório traz a espe
 3. Adicionar procedimento ao histórico do paciente.  
 4. Desfazer o último procedimento do histórico.  
 5. Chamar paciente (retirar da fila e marcar como chamado).  
-6. Mostrar fila de espera.  
+6. Mostrar fila de espera (o programa resolve nomes e imprime; a fila não possui função de impressão pública).  
 7. Mostrar histórico de um paciente.  
 8. Sair e salvar os dados.
 
@@ -32,7 +32,7 @@ Arquivos principais (esperados neste diretório):
 - main.c              — ponto de entrada e interface com o usuário.
 - config.h            — configurações e constantes (tamanhos máximos, capacidade da fila, nome do arquivo de dados).
 - patient_list.h/c    — implementação da lista de pacientes (inserção, busca, remoção, liberação).
-- queue.h/c           — implementação da fila de espera (enqueue, dequeue, contains, remove, print, init/free).
+- queue.h/c           — implementação da fila de espera (enqueue, dequeue, contains, size, get_by_index; sem funções de UI).
 - history.h/c         — pilha de procedimentos por paciente (push, pop, is_full).
 - io.h/c              — funções de leitura/gravação para persistência (io_load, io_save).
 - util.h/c            — utilitários (por exemplo, read_line).
@@ -73,6 +73,15 @@ Alternativa (Windows sem make):
 scripts\build.bat
 ```
 
+Adicional (Windows / PowerShell)
+
+- Se o comando `make` não existir no sistema (erro: 'make' não é reconhecido), use um dos scripts de build incluídos:
+  - PowerShell: .\scripts\build.ps1
+  - CMD/PowerShell: .\scripts\build.bat
+- Alternativa rápida sem scripts (no PowerShell):
+  - cd "d:\pastasGitClonadas\postinhoSaude_projeto1_aed_ICMC_2025"
+  - mkdir output
+  - gcc -std=c11 -Wall -Wextra -g3 *.c -o output\main.exe
 - Nota: este repositório inclui `scripts\build.bat` (script de compilação). Caso queira manter apenas o script dentro da pasta `scripts`, remova o `build.bat` na raiz (por exemplo: `git rm build.bat` e commite). Após remover o stub, atualize a task do VSCode (.vscode/tasks.json) para apontar para `scripts\\build.bat` se necessário.
 
 (script incluído gera `output\main.exe`).
