@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "IO.C": "c"
+        "IO.C": "c",
+        "unistd.h": "c"
     }
 }

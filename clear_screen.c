@@ -6,6 +6,7 @@
  * - Apenas efeitos na UI; não modifica nem persiste dados do programa.
  */
 
+#define _XOPEN_SOURCE 600
 #include "clear_screen.h"
 #include <stdlib.h>
 #include <stdio.h>
