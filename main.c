@@ -77,6 +77,7 @@ Observações de integração:
 - UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo utilizador.
 */
 
+#define _XOPEN_SOURCE 600
 #include <stdio.h> // para printf() e FILE
 #include <stdlib.h> // para atoi() e alocação
 #include <string.h> // para manipular strings mais facilmente
