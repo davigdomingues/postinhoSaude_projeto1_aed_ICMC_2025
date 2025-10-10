@@ -455,7 +455,7 @@ int main(){
             if (plist_history_pop(pl, id, out, sizeof(out)) == 0)
                 printf("Procedimento desfeito (ultimo): %s\n", out);
             else
-                message_and_clear("Nao ha procedimento a desfazer. Retornando ao menu...", MSG_WAIT_SHORT);
+                printf("Nao ha procedimento a desfazer\n");
 
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
