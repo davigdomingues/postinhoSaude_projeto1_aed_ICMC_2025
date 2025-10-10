@@ -3,7 +3,8 @@ Este código contém a função main() da aplicação "postinho de saúde".
 Objetivo geral:
 - Gerir uma lista de pacientes (pl) e uma fila de espera (q).
 - Fornecer um menu simples em linha de comando para registrar pacientes,
-  registrar óbito (com restrições), adicionar/desfazer procedimentos no histórico,
+  registrar obito de paciente,
+  adicionar/desfazer procedimentos no histórico,
   chamar o próximo, mostrar a fila, exibir histórico e salvar os dados ao sair.
 
 Inclusões e módulos:
@@ -35,7 +36,7 @@ Fluxo principal (main):
         - Se o paciente já existir, ele pode ser reinscrito na fila, desde que seja informado o ID correto, a primeira vista.
         - Tenta enfileirar o paciente (queue_enqueue) com checagens: fila cheia (queue_is_full) ou paciente já na fila (queue_contains).
 
-     2) Dar alta:
+     2) Registrar óbito de paciente:
         - Lê ID e remove da fila (queue_remove). Retorno 0 => sucesso.
         - Remove paciente da lista (plist_remove).
 
@@ -201,21 +202,6 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
 int main(){
     /* configuração local para suporte à dados multibyte (acentuados) */
     util_setup_locale();
-#if 0
-    /* antigo bloco mantido aqui apenas como referência (removido) */
-    /* define locale a partir do ambiente; preferir UTF-8 quando disponível */
-    setlocale(LC_ALL, "");
-#if defined(_WIN32)
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-    system("chcp 65001 > nul");
-#else
-    if (!getenv("LANG") && !getenv("LC_ALL")) {
-        setenv("LC_ALL", "en_US.UTF-8", 0);
-        setlocale(LC_ALL, "");
-    }
-#endif
-#endif
 
     PatientList *pl = plist_create();
     Queue       *q  = queue_create(WAIT_CAP);
