@@ -25,11 +25,17 @@
     #define WAIT_CAP 50 // capacidade da fila de espera
 
     /* Nome do ficheiro usado por io_save / io_load. */
-    #define DATA_FILE "data.bin"
+    #define DATA_FILE "bin/data.bin"
 
     /* Durações de tempo para message_and_clear (em milissegundos). */
     #define MSG_WAIT_SHORT 3000U
     #define MSG_WAIT_MEDIUM 4000U
     #define MSG_WAIT_LONG 5000U
+
+    /*
+     * Observação:
+     * - DATA_FILE aponta para o ficheiro usado por io_save/io_load; alterar este valor
+     *   muda o ficheiro persistido por todo o sistema.
+     */
 
 #endif
