@@ -160,8 +160,6 @@ void util_setup_locale(void) {
     /* força codepage do console para UTF-8 no Windows (melhora exibição de acentos no cmd.exe) */
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-    /* também altera code page do host via chcp (silencioso) para compatibilidade com consoles antigos */
-    system("chcp 65001 > nul");
 #else
     /* tenta assegurar que há um locale UTF-8 quando não definido (melhora exibição em terminais Unix) */
     if (!getenv("LANG") && !getenv("LC_ALL")) {

@@ -63,13 +63,29 @@ static void qset_free(Queue *q) {
 
 /* adiciona um id ao conjunto de membros (se nao existir) */
 static void qset_add(Queue *q, const char *id) {
-    if (!q || !q->members || !id) return;
+    if (!q || !q->members || !id) 
+        return;
+
     unsigned long h = q_hash_str(id) % q->mcap;
     struct QHashEntry *e = q->members[h];
-    while (e) { if (strcmp(e->key, id) == 0) return; e = e->next; }
+
+    while (e) { 
+        if (strcmp(e->key, id) == 0) 
+        return;
+
+        e = e->next;
+   
+    }
     e = malloc(sizeof(*e));
-    if (!e) return;
+    if (!e) 
+        return;
+
     e->key = strdup(id);
+    if (!e->key) { 
+        free(e); 
+        return; 
+    }
+    
     e->next = q->members[h];
     q->members[h] = e;
 }

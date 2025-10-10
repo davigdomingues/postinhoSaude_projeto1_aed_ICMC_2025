@@ -107,10 +107,14 @@ static int plist_htable_put(PatientList *pl, const char *key, int idx) {
         if (strcmp(e->key, key) == 0) { e->idx = idx; return 0; }
         e = e->next;
     }
+    /* chave duplicada primeiro para evitar libertar 'e' em caso de falha do strdup */
+    char *dup = strdup(key);
+    if (!dup) return -1;
+
     e = (struct PlHashEntry *)malloc(sizeof(*e));
-    if (!e) return -1;
-    e->key = strdup(key);
-    if (!e->key) { free(e); return -1; }
+    if (!e) { free(dup); return -1; }
+
+    e->key = dup;
     e->idx = idx;
     e->next = pl->htable[h];
     pl->htable[h] = e;

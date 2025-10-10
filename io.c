@@ -62,7 +62,10 @@ static void chomp(char *s) {
 int io_save(const char *path, const PatientList *pl, const Queue *q) {
     /* grava para ficheiro temporário e substitui apenas em sucesso */
     char tmp[512];
-    if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) < 0) return -1;
+    int n = snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    if (n < 0 || (size_t)n >= sizeof(tmp))
+        return -1;
+        
     FILE *f = fopen(tmp, "w");
     if (!f) return -1;
 
