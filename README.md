@@ -218,3 +218,9 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
     - Mantenha convenções do projeto (C11, checks de retorno, buffers terminados com '\0').
     - Teste em ambos ambientes (Unix / Windows) sempre que possível.
     - Abra um issue com descrição curta do problema e passos para reproduzir antes de submeter pull request.
+
+## Autores (nome - número USP)
+
+Davi Gabriel Domingues (15447497)
+Caio Cerceau Nanni (16858556)
+Felipe Gausmann Socolowski (16812461)
