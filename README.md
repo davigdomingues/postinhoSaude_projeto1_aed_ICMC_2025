@@ -1,4 +1,4 @@
-# Postinho de Saúde - Projeto 1 (AED, ICMC 2025)
+# Postinho de Saúde - Projeto 1 e 2 (AED, ICMC 2025)
 
 ## Resumo
 
