@@ -481,14 +481,14 @@ int main(){
             if (qsize == 0) {
                 message_and_clear("Fila vazia. Retornando ao menu...", MSG_WAIT_SHORT);
             } else {
-                printf("Fila de espera (total = %d):\n", qsize);
+                util_printf("Fila de espera (total = %d):\n", qsize); /* was printf */
                 for (int i = 0; i < qsize; ++i) {
                     char id[MAX_ID_LEN + 1];
                     char name[MAX_NAME_LEN + 1];
                     if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
                     if (plist_get_name_by_id(pl, id, name, sizeof(name)) != 0)
                         strncpy(name, "(desconhecido)", sizeof(name));
-                    printf("%d: %s - %s\n", i + 1, id, name);
+                    util_printf("%d: %s - %s\n", i + 1, id, name); /* was printf */
                 }
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
