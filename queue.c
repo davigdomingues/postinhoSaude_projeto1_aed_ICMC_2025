@@ -80,7 +80,7 @@ static void qset_add(Queue *q, const char *id) {
     if (!e) 
         return;
 
-    e->key = strdup(id);
+    e->key = util_strdup(id); /* substitui strdup por versão C99 */
     if (!e->key) { 
         free(e); 
         return; 

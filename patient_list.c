@@ -108,7 +108,7 @@ static int plist_htable_put(PatientList *pl, const char *key, int idx) {
         e = e->next;
     }
     /* chave duplicada primeiro para evitar libertar 'e' em caso de falha do strdup */
-    char *dup = strdup(key);
+    char *dup = util_strdup(key); /* substitui strdup por versão C99 */
     if (!dup) return -1;
 
     e = (struct PlHashEntry *)malloc(sizeof(*e));

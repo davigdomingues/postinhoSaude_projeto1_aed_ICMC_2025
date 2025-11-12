@@ -42,4 +42,7 @@ void print_utf8(const char *s);
 /* Função auxiliar de comprimento limitado, compatível com C99 (substitui strnlen) */
 size_t util_strnlen(const char *s, size_t maxlen);
 
+/* Duplicador de string compatível com C99 (substitui strdup) */
+char *util_strdup(const char *s);
+
 #endif

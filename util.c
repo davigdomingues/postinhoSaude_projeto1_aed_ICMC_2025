@@ -20,6 +20,16 @@ size_t util_strnlen(const char *s, size_t maxlen) {
     return i;
 }
 
+/* Duplicador de string compatível com C99 (substitui strdup) */
+char *util_strdup(const char *s) {
+    if (!s) return NULL;
+    size_t len = strlen(s) + 1;
+    char *p = (char *)malloc(len);
+    if (!p) return NULL;
+    memcpy(p, s, len);
+    return p;
+}
+
 /* Le uma linha do stdin de forma segura, remove CR/LF, descarta resto da linha se truncada.
    Define last_truncated = 1 se a entrada foi maior que o buffer.
 
