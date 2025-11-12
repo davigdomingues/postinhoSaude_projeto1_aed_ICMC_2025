@@ -4,6 +4,7 @@ CFLAGS = -std=c11 -Wall -Wextra -g3
 CPPFLAGS = -I.
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.o,$(SRCS))
+OUTDIR = output
 
 # Detecta Windows (cria executável com .exe) em ambientes onde MAKE definiu OS=Windows_NT
 EXE :=
@@ -21,7 +22,7 @@ RM = rm -f
 all: $(OUT)
 
 $(OUTDIR):
-	@$(MKDIR_P)
+	@$(MKDIR_P) $(OUTDIR)
 
 $(OUT): $(OBJS) | $(OUTDIR)
 	$(CC) $(CFLAGS) $(OBJS) -o $@

@@ -247,7 +247,7 @@ int main(){
                 while (id[start] && isspace((unsigned char)id[start]))
                     ++start;
 
-                size_t end = util_strnlen(id, MAX_ID_LEN + 1);
+                size_t end = strnlen(id, MAX_ID_LEN + 1);
                 while (end > start && isspace((unsigned char)id[end - 1]))
                     --end;
 
@@ -258,7 +258,7 @@ int main(){
                     id[len] = '\0';
                 }
 
-                size_t len = util_strnlen(id, MAX_ID_LEN + 1);
+                size_t len = strnlen(id, MAX_ID_LEN + 1);
                 if (len == 0) {
                     message_and_clear("ID vazio. Informe novamente.", MSG_WAIT_SHORT);
                     continue;
@@ -481,14 +481,14 @@ int main(){
             if (qsize == 0) {
                 message_and_clear("Fila vazia. Retornando ao menu...", MSG_WAIT_SHORT);
             } else {
-                util_printf("Fila de espera (total = %d):\n", qsize); /* was printf */
+                printf("Fila de espera (total = %d):\n", qsize);
                 for (int i = 0; i < qsize; ++i) {
                     char id[MAX_ID_LEN + 1];
                     char name[MAX_NAME_LEN + 1];
                     if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
                     if (plist_get_name_by_id(pl, id, name, sizeof(name)) != 0)
                         strncpy(name, "(desconhecido)", sizeof(name));
-                    util_printf("%d: %s - %s\n", i + 1, id, name); /* was printf */
+                    printf("%d: %s - %s\n", i + 1, id, name);
                 }
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }

@@ -3,6 +3,12 @@
 
 #include <stddef.h>
 
+#if defined(_WIN32)
+/* Compatibilidade: declare setenv para que módulos que chamem setenv() linkem
+   com a implementação fornecida em util.c no Windows. */
+int setenv(const char *name, const char *value, int overwrite);
+#endif
+
 /* Configuração de locale e console (UTF-8) — mover do main para util */
 void util_setup_locale(void);
 
@@ -32,11 +38,5 @@ int format_timestamp(char *out, size_t out_size);
  */
 int util_printf(const char *fmt, ...);
 void print_utf8(const char *s);
-
-/* Função auxiliar de comprimento limitado, compatível com C99 (substitui strnlen) */
-size_t util_strnlen(const char *s, size_t maxlen);
-
-/* Duplicador de string compatível com C99 (substitui strdup) */
-char *util_strdup(const char *s);
 
 #endif
