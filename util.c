@@ -30,6 +30,15 @@ char *util_strdup(const char *s) {
     return p;
 }
 
+/* Helper C99: obtém hora local em 'out' usando apenas localtime (copia segura) */
+static int util_localtime(const time_t *t, struct tm *out) {
+    if (!t || !out) return -1;
+    struct tm *tmp = localtime(t);
+    if (!tmp) return -1;
+    *out = *tmp; /* copia para buffer do chamador */
+    return 0;
+}
+
 /* Le uma linha do stdin de forma segura, remove CR/LF, descarta resto da linha se truncada.
    Define last_truncated = 1 se a entrada foi maior que o buffer.
 
@@ -90,22 +99,10 @@ int format_timestamp(char *out, size_t out_size) {
     time_t t = time(NULL);
     if (t == (time_t)-1) return -1;
 
-#if defined(_WIN32) || defined(_MSC_VER)
     struct tm tmbuf;
-    if (localtime_s(&tmbuf, &t) != 0) return -1;
+    if (util_localtime(&t, &tmbuf) != 0) return -1;
     if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) return -1;
     return 0;
-#elif defined(__unix__) || defined(__APPLE__)
-    struct tm tmbuf;
-    if (localtime_r(&t, &tmbuf) == NULL) return -1;
-    if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) return -1;
-    return 0;
-#else
-    struct tm *tmp = localtime(&t);
-    if (!tmp) return -1;
-    if (strftime(out, out_size, "%Y-%m-%d %H:%M", tmp) == 0) return -1;
-    return 0;
-#endif
 }
 
 /* Imprime diretamente uma string UTF-8 de forma segura no Windows (WriteConsoleW)
@@ -172,18 +169,26 @@ int util_printf(const char *fmt, ...) {
 /* Configura locale/console para suportar UTF-8 de forma portátil.
    Usar esta função a partir de main() no início da execução. */
 void util_setup_locale(void) {
-    /* define locale a partir do ambiente; preferir UTF-8 quando disponível */
+    /* tenta usar locale do ambiente (padrão) */
     setlocale(LC_ALL, "");
 #if defined(_WIN32)
     /* força codepage do console para UTF-8 no Windows (melhora exibição de acentos no cmd.exe) */
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #else
-    /* tenta assegurar que há um locale UTF-8 quando não definido (melhora exibição em terminais Unix) */
-    if (!getenv("LANG") && !getenv("LC_ALL")) {
-        /* esforço simples, não sobrescreve configuração do utilizador se já existir */
-        setenv("LC_ALL", "en_US.UTF-8", 0);
-        setlocale(LC_ALL, "");
+    /* Evita setenv: tenta alguns locais UTF-8 comuns via setlocale diretamente */
+    const char *cur = setlocale(LC_ALL, NULL);
+    int ok_utf8 = 0;
+    if (cur && (strstr(cur, "UTF-8") || strstr(cur, "utf8"))) ok_utf8 = 1;
+
+    if (!ok_utf8) {
+        const char *cands[] = { "C.UTF-8", "en_US.UTF-8", "pt_BR.UTF-8", "POSIX", NULL };
+        for (int i = 0; cands[i]; ++i) {
+            if (setlocale(LC_ALL, cands[i])) {
+                /* aceita o primeiro que funcionar; preferimos UTF-8, POSIX é fallback */
+                break;
+            }
+        }
     }
 #endif
 }
@@ -192,17 +197,6 @@ void util_setup_locale(void) {
  *
  * Observações:
  * - read_line() e read_line_truncated() garantem comportamento consistente e descarte do restante da linha.
- * - format_timestamp() usa apis seguras (localtime_r/localtime_s) conforme plataforma.
+ * - format_timestamp() usa apenas APIs C99 (localtime + cópia para struct tm).
  * - Este módulo não faz persistência em disco.
  */
-
-#if defined(_WIN32)
-/* Implementação compatível de setenv para o CRT do Windows.
-   Retorna 0 em sucesso, -1 em erro. */
-int setenv(const char *name, const char *value, int overwrite) {
-    if (!name || !value) return -1;
-    if (!overwrite && getenv(name) != NULL) return 0;
-    /* _putenv_s retorna 0 em sucesso */
-    return _putenv_s(name, value) == 0 ? 0 : -1;
-}
-#endif
