@@ -247,7 +247,7 @@ int main(){
                 while (id[start] && isspace((unsigned char)id[start]))
                     ++start;
 
-                size_t end = strnlen(id, MAX_ID_LEN + 1);
+                size_t end = util_strnlen(id, MAX_ID_LEN + 1);
                 while (end > start && isspace((unsigned char)id[end - 1]))
                     --end;
 
@@ -258,7 +258,7 @@ int main(){
                     id[len] = '\0';
                 }
 
-                size_t len = strnlen(id, MAX_ID_LEN + 1);
+                size_t len = util_strnlen(id, MAX_ID_LEN + 1);
                 if (len == 0) {
                     message_and_clear("ID vazio. Informe novamente.", MSG_WAIT_SHORT);
                     continue;

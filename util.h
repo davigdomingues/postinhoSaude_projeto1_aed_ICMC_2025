@@ -39,4 +39,7 @@ int format_timestamp(char *out, size_t out_size);
 int util_printf(const char *fmt, ...);
 void print_utf8(const char *s);
 
+/* Função auxiliar de comprimento limitado, compatível com C99 (substitui strnlen) */
+size_t util_strnlen(const char *s, size_t maxlen);
+
 #endif

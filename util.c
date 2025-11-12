@@ -12,6 +12,14 @@
 
 static int last_truncated = 0;
 
+/* Comprimento de string limitado compatível com C99 (substitui strnlen) */
+size_t util_strnlen(const char *s, size_t maxlen) {
+    if (!s) return 0;
+    size_t i = 0;
+    while (i < maxlen && s[i] != '\0') ++i;
+    return i;
+}
+
 /* Le uma linha do stdin de forma segura, remove CR/LF, descarta resto da linha se truncada.
    Define last_truncated = 1 se a entrada foi maior que o buffer.
 
