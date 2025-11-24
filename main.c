@@ -86,6 +86,7 @@ Observações de integração:
 #include <ctype.h> // para isdigit() e ispace()
 #include <string.h> // para manipular strings mais facilmente
 #include "config.h" // header com constantes de configuração
+#include "patient_tree.h" // header da árvore de pacientes -> substituto de patient_list.h (razão: otimização máxima para sistemas mais sobrecarregados)
 #include "patient_list.h" // header da lista de pacientes
 #include "queue.h" // header da fila
 #include "history.h" // header do histórico
@@ -97,9 +98,28 @@ Observações de integração:
 #include <locale.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <stdbool.h>
 #if defined(_WIN32)
 #include <windows.h>
 #endif
+
+/* callback usado por show_archive_data para imprimir paciente + historico */
+static void show_patient_and_history_cb(const char *id, const char *name, bool called, void *ud) {
+    (void)called;
+    PatientTree *pt = (PatientTree*)ud;
+    printf(" - %s: %s\n", id, name);
+
+    int hsz = ptree_history_size_by_id(pt, id);
+    if (hsz > 0) {
+        util_printf("\nHistorico de %s (ID %s): %d item(ns)\n", name, id, hsz);
+        for (int hi = 0; hi < hsz; ++hi) {
+            char hline[PROC_MAX_LEN + 1];
+            if (ptree_history_get_by_id(pt, id, hi, hline, sizeof(hline)) == 0)
+                util_printf("  %d) %s\n", hi + 1, hline);
+        }
+        util_printf("\n");
+    }
+}
 
 /* Helpers locais para melhorar legibilidade */
 
@@ -123,36 +143,14 @@ static void show_menu(void) {
    - históricos por paciente
    - fila de espera com nomes resolvidos via PatientList
    Em caso de erro no carregamento, informa o usuário e inicializa vazio */
-static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
+static void show_archive_data(PatientTree *pt, Queue *q, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
     if (load_r == 0) {
         /* Mostra resumidamente o estado carregado para o utilizador antes de limpar */
         printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
 
-        if (plist_size(pl) > 0) {
-            plist_print(pl);
-
-            /* Mostra o histórico detalhado de cada paciente */
-            for (size_t pi = 0; pi < plist_size(pl); ++pi) {
-                char pid[MAX_ID_LEN + 1];
-                char pname[MAX_NAME_LEN + 1];
-                if (plist_get_id_by_index(pl, pi, pid, sizeof(pid)) != 0) continue;
-                if (plist_get_name_by_index(pl, pi, pname, sizeof(pname)) != 0) strncpy(pname, "(desconhecido)", sizeof(pname));
-
-                int hsz = plist_history_size_by_index(pl, pi);
-                util_printf("\nHistorico de %s (ID %s): %d item(ns)\n", pname, pid, hsz);
-                for (int hi = 0; hi < hsz; ++hi) {
-                    char hline[PROC_MAX_LEN + 1];
-                    if (plist_history_get_by_index(pl, pi, hi, hline, sizeof(hline)) == 0)
-                        util_printf("  %d) %s\n", hi + 1, hline);
-                }
-            }
-        } 
-        
-        else
-            printf("Nenhum paciente registrado.\n");
-
-        printf("\n");
+        /* imprime cada paciente (em ordem) e seus historicos via callback */
+        ptree_inorder(pt, show_patient_and_history_cb, pt);
 
         if (queue_size(q) > 0) {
             printf("Fila de espera:\n");
@@ -161,7 +159,7 @@ static void show_archive_data(PatientList *pl, Queue *q, int load_r) {
                 char qid[MAX_ID_LEN + 1];
                 char qname[MAX_NAME_LEN + 1];
                 if (queue_get_id_by_index(q, qi, qid, sizeof(qid)) != 0) continue;
-                if (plist_get_name_by_id(pl, qid, qname, sizeof(qname)) != 0)
+                if (ptree_get_name(pt, qid, qname, sizeof(qname)) != 0)
                     strncpy(qname, "(desconhecido)", sizeof(qname));
                 util_printf("%d: %s - %s\n", qi + 1, qid, qname);
             }
@@ -203,16 +201,19 @@ int main(){
     /* configuração local para suporte à dados multibyte (acentuados) */
     util_setup_locale();
 
-    PatientList *pl = plist_create();
+    /* Usamos a árvore diretamente em runtime */
+    PatientTree *pt = ptree_create();
     Queue       *q  = queue_create(WAIT_CAP);
-    
-    if (!pl || !q) {
+     
+    if (!pt || !q) {
         fprintf(stderr, "Erro de inicializacao.\n");
         return 1;
-    }
-
-    int load_r = io_load(DATA_FILE, pl, q);
-    show_archive_data(pl, q, load_r);
+     }
+ 
+    /* Carrega diretamente na árvore (antes carregávamos numa PatientList e convertíamos) */
+    int load_r = io_load(DATA_FILE, pt, q);
+    /* show_archive_data agora aceita a árvore (comparativo com antigo uso de PatientList permanece em comentários) */
+    show_archive_data(pt, q, load_r);
 
     int opc = 0;
     char buf[256];
@@ -230,6 +231,7 @@ int main(){
         if (opc == 1) {
             char id[MAX_ID_LEN + 1], name[MAX_NAME_LEN + 1];
             int reinInserted = 0; /* flag: se 1, pula cadastro pois tratou reinsercao/aviso */
+
             /* Lê ID manualmente, aceita apenas dígitos e evita duplicata.
                Faz trim de espaços, usa strnlen e valida cada caractere com isdigit. */
             for (;;) {
@@ -278,11 +280,12 @@ int main(){
                     continue;
                 }
 
-                /* Se o ID já está cadastrado, oferecer reinsercao na fila:
-                   - se já estiver na fila, avisa e retornar ao menu
-                   - se fila cheia, avisa e retornar ao menu
+                /* Se o ID já está cadastrado (antigo: plist_find_index/plist_*), agora usamos ptree_exists, mas ainda oferecer reinsercao na fila:
+                   - se já estiver na fila, avisa e retorna ao menu
+                   - se a fila já estiver cheia, avisa e retorna ao menu
                    - senao, enfileira e informa "paciente reinserido na fila!" */
-                if (plist_find_index(pl, id) >= 0) {
+                // if (plist_find_index(pl, id) >= 0) {
+                if (ptree_exists(pt, id)) {
                     if (queue_contains(q, id)) {
                         message_and_clear("Paciente ja esta na fila. Retornando ao menu...", MSG_WAIT_SHORT);
                         reinInserted = 1; /* tratou a situacao, não cadastrar */
@@ -294,7 +297,7 @@ int main(){
                     } else {
                         queue_enqueue(q, id);
                         /* paciente voltou para a fila -> marcar como não chamado */
-                        (void)plist_set_called(pl, id, false);
+                        (void)ptree_set_called(pt, id, false);
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
                         reinInserted = 1; /* já reinserido, pular cadastro */
                         break;
@@ -330,7 +333,11 @@ int main(){
                 break;
             }
 
-            int r = plist_insert(pl, id, name);
+            /* ORIGINAL (lista):
+               int r = plist_insert(pl, id, name);
+            */
+            int r = ptree_insert(pt, id, name); /* agora usa árvore */
+
             if (r == 0)
                 printf("Paciente cadastrado.\n");
             else {
@@ -354,7 +361,8 @@ int main(){
             char id[MAX_ID_LEN + 1];
             printf("ID do obito: "); read_line(id, sizeof(id));
 
-            if (plist_find_index(pl, id) < 0) {
+            /* ORIGINAL (lista): if (plist_find_index(pl, id) < 0) { ... } */
+            if (!ptree_exists(pt, id)) {
                 message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
@@ -365,14 +373,17 @@ int main(){
                 continue;
             }
 
-            if (!plist_is_called(pl, id)) {
+            /* ORIGINAL (lista): if (!plist_is_called(pl, id)) { ... } */
+            if (!ptree_is_called(pt, id)) {
                 printf("Obito proibido.\n");
                 message_and_clear("Paciente nao foi chamado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
-            if (plist_remove(pl, id) == 0)
+            /* ORIGINAL (lista): if (plist_remove(pl, id) == 0) ... */
+            if (ptree_remove(pt, id) == 0)
                 printf("Obito registrado e dados removidos (LGPD).\n");
+                
             else
                 printf("Falha ao remover registro do paciente.\n");
 
@@ -382,12 +393,14 @@ int main(){
             char id[MAX_ID_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
-            if (plist_find_index(pl, id) < 0) {
+            /* ORIGINAL (lista): if (plist_find_index(pl, id) < 0) { ... } */
+            if (!ptree_exists(pt, id)) {
                 message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
-            if (plist_history_is_full(pl, id)) {
+            /* ORIGINAL (lista): if (plist_history_is_full(pl, id)) { ... } */
+            if (ptree_history_is_full(pt, id)) {
                 message_and_clear("Historico cheio. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
@@ -396,7 +409,6 @@ int main(){
             char proc[PROC_MAX_LEN + 1];
             printf("Procedimento (ate %d chars): ", PROC_MAX_LEN);
             read_line(proc, sizeof(proc));
-
             if (read_line_truncated()) {
                 message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
                 continue;
@@ -435,7 +447,8 @@ int main(){
                 item[sizeof(item) - 1] = '\0';
             }
 
-            if (plist_history_push(pl, id, item) == 0)
+            /* ORIGINAL (lista): plist_history_push(pl, id, item) */
+            if (ptree_history_push(pt, id, item) == 0)
                 printf("Procedimento adicionado.\n");
             else
                 printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
@@ -446,13 +459,14 @@ int main(){
             char id[MAX_ID_LEN + 1], out[PROC_MAX_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
-            if (plist_find_index(pl, id) < 0) {
+            /* ORIGINAL (lista): if (plist_find_index(pl, id) < 0) { ... } */
+            if (!ptree_exists(pt, id)) {
                 message_and_clear("Paciente nao encontrado. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
-            /* Pop desfaz o ultimo procedimento (LIFO) */
-            if (plist_history_pop(pl, id, out, sizeof(out)) == 0)
+            /* ORIGINAL (lista): if (plist_history_pop(pl, id, out, sizeof(out)) == 0) ... */
+            if (ptree_history_pop(pt, id, out, sizeof(out)) == 0)
                 printf("Procedimento desfeito (ultimo): %s\n", out);
             else
                 printf("Nao ha procedimento a desfazer\n");
@@ -465,8 +479,9 @@ int main(){
 
             if (queue_dequeue(q, id, sizeof(id)) == 0) {
                 char name[MAX_NAME_LEN + 1];
-                if (plist_get_name_by_id(pl, id, name, sizeof(name)) == 0) {
-                    plist_set_called(pl, id, true);
+                /* ORIGINAL (lista): if (plist_get_name_by_id(pl, id, name, sizeof(name)) == 0) { plist_set_called(pl, id, true); ... } */
+                if (ptree_get_name(pt, id, name, sizeof(name)) == 0) {
+                    ptree_set_called(pt, id, true);
                     util_printf("Chamando: ID %s | Nome: %s\n", id, name);
                 } else
                     printf("Chamando: ID %s | Nome: (desconhecido)\n", id);
@@ -481,14 +496,15 @@ int main(){
             if (qsize == 0) {
                 message_and_clear("Fila vazia. Retornando ao menu...", MSG_WAIT_SHORT);
             } else {
-                util_printf("Fila de espera (total = %d):\n", qsize); /* was printf */
+                util_printf("Fila de espera (total = %d):\n", qsize);
                 for (int i = 0; i < qsize; ++i) {
                     char id[MAX_ID_LEN + 1];
                     char name[MAX_NAME_LEN + 1];
                     if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
-                    if (plist_get_name_by_id(pl, id, name, sizeof(name)) != 0)
-                        strncpy(name, "(desconhecido)", sizeof(name));
-                    util_printf("%d: %s - %s\n", i + 1, id, name); /* was printf */
+                    /* ORIGINAL (lista): if (plist_get_name_by_id(pl, id, name, sizeof(name)) != 0) */
+                    if (ptree_get_name(pt, id, name, sizeof(name)) != 0)
+                         strncpy(name, "(desconhecido)", sizeof(name));
+                    util_printf("%d: %s - %s\n", i + 1, id, name);
                 }
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
@@ -496,48 +512,59 @@ int main(){
             char id[MAX_ID_LEN + 1];
             printf("ID: "); read_line(id, sizeof(id));
 
-            if (plist_find_index(pl, id) < 0) {
+            /* ORIGINAL (lista): if (plist_find_index(pl, id) < 0) { ... } */
+            if (!ptree_exists(pt, id)) {
                 printf("Paciente nao encontrado.\n");
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
-            int n = plist_history_size_by_id(pl, id);
+            /* ORIGINAL (lista):
+               int n = plist_history_size_by_id(pl, id);
+               plist_get_name_by_id(pl, id, name, sizeof(name));
+               for (...) plist_history_get_by_id(...)
+            */
+            int n = ptree_history_size_by_id(pt, id);
             char name[MAX_NAME_LEN + 1];
-            plist_get_name_by_id(pl, id, name, sizeof(name));
+            ptree_get_name(pt, id, name, sizeof(name));
 
             util_printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
 
             for (int i = 0; i < n; ++i) {
                 char item[PROC_MAX_LEN + 1];
-                if (plist_history_get_by_id(pl, id, i, item, sizeof(item)) == 0)
+                if (ptree_history_get_by_id(pt, id, i, item, sizeof(item)) == 0)
                     util_printf("%d) %s\n", i + 1, item);
             }
 
             message_and_clear("Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } else if (opc == 8) {
-            /* Só salva se houver dados carregados ou se existirem entradas geradas */
-            size_t n_pat = plist_size(pl);
+            /* Agora gravamos diretamente a partir da árvore (sem reconstruir PatientList).
+               Comentário comparativo (antigo): salvar via PatientList era:
+                 // size_t n_pat = plist_size(pl);
+                 // if (io_save(DATA_FILE, pl, q) == 0) ...
+            */
+            size_t n_pat = ptree_size(pt);
             int qsize = queue_size(q);
             if (n_pat > 0 || qsize > 0 || load_r == 0) {
-                if (io_save(DATA_FILE, pl, q) == 0)
+                if (io_save(DATA_FILE, pt, q) == 0)
                     printf("Dados salvos em %s. Ate breve.\n", DATA_FILE);
                 else
                     printf("Erro ao salvar dados.\n");
             } else {
                 printf("Nenhum dado para salvar. Arquivo nao foi alterado.\n");
             }
+
+            break;
+         } else {
+             printf("Opcao invalida.\n");
+             message_and_clear("Opcao invalida. Retornando ao menu...", MSG_WAIT_SHORT);
+         }
+     }
  
-             break;
-        } else {
-            printf("Opcao invalida.\n");
-            message_and_clear("Opcao invalida. Retornando ao menu...", MSG_WAIT_SHORT);
-        }
-    }
-
+    /* cleanup final: usar árvore + fila */
+    ptree_destroy(pt);
     queue_destroy(q);
-    plist_destroy(pl);
-
-    return 0;
-}
+ 
+     return 0;
+ }
