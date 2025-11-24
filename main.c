@@ -87,7 +87,7 @@ Observações de integração:
 #include <string.h> // para manipular strings mais facilmente
 #include "config.h" // header com constantes de configuração
 #include "patient_tree.h" // header da árvore de pacientes -> substituto de patient_list.h (razão: otimização máxima para sistemas mais sobrecarregados)
-#include "patient_list.h" // header da lista de pacientes
+// #include "patient_list.h" // header da lista de pacientes
 #include "queue.h" // header da fila
 #include "history.h" // header do histórico
 #include "io.h" // header para salvar/carregar

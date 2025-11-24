@@ -1,4 +1,4 @@
-Resumo da verificação C99
+Resumo da verificação C99 (padrão desejado pelo projeto da disciplina)
 ------------------------
 
 Passo para verificar localmente:
