@@ -27,4 +27,11 @@ size_t ptree_size(const PatientTree *t);
 typedef void (*ptree_visit_fn)(const char*, const char*, bool, void*);
 void ptree_inorder(const PatientTree *t, ptree_visit_fn fn, void *userdata);
 
+/* Wrappers de histórico para permitir uso direto da árvore (analogia com patient_list) */
+int ptree_history_is_full(const PatientTree *t, const char *id);
+int ptree_history_push(PatientTree *t, const char *id, const char *proc);
+int ptree_history_pop(PatientTree *t, const char *id, char *out, size_t out_size);
+int ptree_history_size_by_id(const PatientTree *t, const char *id);
+int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, char *out, size_t out_size);
+
 #endif

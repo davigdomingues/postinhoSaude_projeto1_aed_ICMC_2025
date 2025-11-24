@@ -1,7 +1,7 @@
 /* Estrutura: Árvore AVL de pacientes (chave = id).
  * Objetivo: Fornecer buscas, inserções e remoções O(log n) mantendo histórico associado.
  * Notas:
- *  - Cada nó guarda Patient com ponteiro para History (TAD opaco).
+ *  - Cada nó guarda Patient com ponteiro para History (TAD opaca).
  *  - Rebalanceamento padrão AVL (rotações simples e duplas).
  *  - Remoção troca dados com sucessor in-order para simplificar lógica.
  */
@@ -286,4 +286,36 @@ size_t ptree_size(const PatientTree *t){ return t ? t->size : 0; }
 void ptree_inorder(const PatientTree *t, ptree_visit_fn fn, void *userdata){
     if(!t || !fn) return;
     inorder_rec(t->root, fn, userdata);
+}
+
+/* Histórico: wrappers que acessam History* armazenado no nó correspondente */
+int ptree_history_is_full(const PatientTree *t, const char *id) {
+    if (!t || !id) return 0;
+    PatientNode *n = find_node((PatientNode*)t->root, id);
+    return (n && n->data.hist) ? (history_is_full(n->data.hist) ? 1 : 0) : 0;
+}
+
+int ptree_history_push(PatientTree *t, const char *id, const char *proc) {
+    if (!t || !id || !proc) return -1;
+    PatientNode *n = find_node((PatientNode*)t->root, id);
+    return (n && n->data.hist) ? history_push(n->data.hist, proc) : -1;
+}
+
+int ptree_history_pop(PatientTree *t, const char *id, char *out, size_t out_size) {
+    if (!t || !id || !out || out_size == 0) return -1;
+    PatientNode *n = find_node((PatientNode*)t->root, id);
+    return (n && n->data.hist) ? history_pop(n->data.hist, out, out_size) : -1;
+}
+
+int ptree_history_size_by_id(const PatientTree *t, const char *id) {
+    if (!t || !id) return 0;
+    PatientNode *n = find_node((PatientNode*)t->root, id);
+    return (n && n->data.hist) ? history_size(n->data.hist) : 0;
+}
+
+int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, char *out, size_t out_size) {
+    if (!t || !id || !out || out_size == 0) return -1;
+    PatientNode *n = find_node((PatientNode*)t->root, id);
+    if (!n || !n->data.hist) return -1;
+    return history_get_by_index(n->data.hist, hist_idx, out, out_size);
 }
