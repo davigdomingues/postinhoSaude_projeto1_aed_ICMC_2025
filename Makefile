@@ -11,6 +11,7 @@ ifeq ($(OS),Windows_NT)
 	EXE := .exe
 endif
 
+# Detecta Linux (coloca o output como ./main) em ambientes linux
 UNAME_S := $(shell uname -s)
 DOT :=
 ifeq ($(UNAME_S),Linux)
