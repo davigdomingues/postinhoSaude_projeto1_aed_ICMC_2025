@@ -32,9 +32,17 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "io.h"
 #include "config.h"
 
+/* adicionados para garantir protótipos usados no callback */
+#include "patient_tree.h"
+#include "queue.h"  
+
+/* Forward declaration: torna o tipo e o callback visíveis antes do uso em io_save */
+struct SaveCtx { FILE *f; const PatientTree *pt; const Queue *q; };
+static void write_patient_cb(const char *id, const char *name, bool called, void *ud);
 
 /* Remove terminadores de linha CR/LF do fim da string lida com fgets */
 static void chomp(char *s) {
@@ -59,47 +67,25 @@ static void chomp(char *s) {
    - Se fclose ok, remove(path) e rename(tmp,path) para realizar substituicao atomica simples
    - Em caso de qualquer erro de escrita/leitura retorna -1 (io_save) e o chamador pode avisar o usuario
 */
-int io_save(const char *path, const PatientList *pl, const Queue *q) {
+int io_save(const char *path, const PatientTree *pt, const Queue *q) {
     /* grava para ficheiro temporário e substitui apenas em sucesso */
     char tmp[512];
     int n = snprintf(tmp, sizeof(tmp), "%s.tmp", path);
     if (n < 0 || (size_t)n >= sizeof(tmp))
         return -1;
-        
+
     FILE *f = fopen(tmp, "w");
     if (!f) return -1;
 
-    size_t n_pat = plist_size(pl);
+    /* escreve número total de pacientes primeiro */
+    size_t n_pat = ptree_size(pt);
     fprintf(f, "%lu\n", (unsigned long)n_pat);
 
-    for (size_t i = 0; i < n_pat; ++i) {
-        char id[MAX_ID_LEN + 2];
-        char name[MAX_NAME_LEN + 2];
-        if (plist_get_id_by_index(pl, i, id, sizeof(id)) != 0) { fclose(f); return -1; }
-        if (plist_get_name_by_index(pl, i, name, sizeof(name)) != 0) { fclose(f); return -1; }
+    /* context passado para o callback: arquivo, árvore e fila */
+    struct SaveCtx ctx = { f, pt, q };
 
-        fprintf(f, "%s\n%s\n", id, name);
-
-        int n_hist = plist_history_size_by_index(pl, i);
-        fprintf(f, "%d\n", n_hist);
-        for (int k = 0; k < n_hist; ++k) {
-            char line[PROC_MAX_LEN + 2];
-            if (plist_history_get_by_index(pl, i, k, line, sizeof(line)) != 0) { fclose(f); return -1; }
-            fprintf(f, "%s\n", line);
-        }
-
-        /* Garante que o valor persistido de 'called' seja consistente com a fila
-           Se o ID estiver na fila, consideramos que ele nao esta 'chamado' (0)
-           mesmo que a flag em memoria esteja desatualizada */
-        int called_flag = 0;
-        if (q && queue_contains(q, id))
-            called_flag = 0;
-        
-        else 
-            called_flag = plist_is_called(pl, id) ? 1 : 0;
-        
-        fprintf(f, "%d\n", called_flag);
-    }
+    /* percorre a árvore e escreve cada paciente */
+    ptree_inorder(pt, write_patient_cb, &ctx);
 
     int qsize = queue_size(q);
     fprintf(f, "%d\n", qsize);
@@ -160,13 +146,13 @@ static void normalize_to_utf8_inplace(char *s, size_t buf_size) {
      * le id via fgets (verificar retorno)
      * le name via fgets (verificar retorno)
      * chomp em id/name (remove CR/LF)
-     * chama plist_insert para criar o paciente em memoria
-     * le n_history via fscanf("%d\\n"), e para cada entrada le uma linha e faz plist_history_push
-     * le called_flag via fscanf("%d\\n") e aplica plist_set_called
+     * chama ptree_insert para criar o paciente em memoria
+     * le n_history via fscanf("%d\\n"), e para cada entrada le uma linha e faz ptree_history_push
+     * le called_flag via fscanf("%d\\n") e aplica ptree_set_called
    - Depois le tamanho da fila e enfileira os ids lidos (queue_enqueue), ignorando overflow da fila
    - Em caso de qualquer leitura inesperada retorna -2 e nao altera mais o estado
 */
-int io_load(const char *path, PatientList *pl, Queue *q) {
+int io_load(const char *path, PatientTree *pt, Queue *q) {
     FILE *f = fopen(path, "r");
     if (!f)
         return -1;
@@ -204,7 +190,7 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
         normalize_to_utf8_inplace(id, sizeof(id));
         normalize_to_utf8_inplace(name, sizeof(name));
 
-        if (plist_insert(pl, id, name) < 0) {
+        if (ptree_insert(pt, id, name) < 0) {
             fclose(f);
             return -2;
         }
@@ -225,8 +211,8 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
             chomp(line);
             /* normaliza linha do histórico para UTF-8 */
             normalize_to_utf8_inplace(line, sizeof(line));
-            /* usar wrapper para adicionar histórico */
-            if (plist_history_push(pl, id, line) != 0) {
+            /* usar wrapper para adicionar histórico na árvore */
+            if (ptree_history_push(pt, id, line) != 0) {
                 /* falha ao inserir histórico -> ignoramos item e continuamos */
             }
         }
@@ -238,7 +224,7 @@ int io_load(const char *path, PatientList *pl, Queue *q) {
             return -2;
         }
 
-        plist_set_called(pl, id, called_flag ? true : false);
+        ptree_set_called(pt, id, called_flag ? true : false);
     }
 
     int m = 0;
@@ -358,4 +344,31 @@ static int cp1252_to_utf8(const char *in, char *out, size_t out_size) {
     if (ri >= out_size) return -1;
     out[ri] = '\0';
     return 0;
+}
+
+/* callback não aninhada para escrever um paciente (usada por ptree_inorder) */
+static void write_patient_cb(const char *id, const char *name, bool called, void *ud) {
+    (void)called; /* evita warning de parâmetro não usado */
+    struct SaveCtx *c = (struct SaveCtx*)ud;
+    if (!c || !c->f) return;
+    FILE *wf = c->f;
+    /* id/name já estão fornecidos pelo inorder */
+    fprintf(wf, "%s\n%s\n", id, name);
+
+    /* histórico: usa wrappers da árvore */
+    int n_hist = ptree_history_size_by_id(c->pt, id);
+    fprintf(wf, "%d\n", n_hist);
+    for (int k = 0; k < n_hist; ++k) {
+        char line[PROC_MAX_LEN + 2];
+        if (ptree_history_get_by_id(c->pt, id, k, line, sizeof(line)) != 0) continue;
+        fprintf(wf, "%s\n", line);
+    }
+
+    /* called_flag: se estiver na fila, guardamos 0; caso contrário usamos a flag em memória */
+    int called_flag = 0;
+    if (c->q && queue_contains(c->q, id))
+        called_flag = 0;
+    else
+        called_flag = ptree_is_called(c->pt, id) ? 1 : 0;
+    fprintf(wf, "%d\n", called_flag);
 }

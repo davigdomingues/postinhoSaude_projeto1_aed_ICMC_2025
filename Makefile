@@ -11,7 +11,14 @@ ifeq ($(OS),Windows_NT)
 	EXE := .exe
 endif
 
-OUT = $(OUTDIR)/main$(EXE)
+# Detecta Linux (coloca o output como ./main) em ambientes linux
+UNAME_S := $(shell uname -s)
+DOT :=
+ifeq ($(UNAME_S),Linux)
+	DOT := .
+endif
+
+OUT = $(OUTDIR)$(DOT)/main$(EXE)
 
 MKDIR_P = mkdir -p
 RM = rm -f
@@ -21,7 +28,8 @@ RM = rm -f
 all: $(OUT)
 
 $(OUTDIR):
-	@$(MKDIR_P)
+
+	@$(MKDIR_P) 
 
 $(OUT): $(OBJS) | $(OUTDIR)
 	$(CC) $(CFLAGS) $(OBJS) -o $@

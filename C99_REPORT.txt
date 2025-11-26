@@ -1,0 +1,5 @@
+Resumo da verificação C99 (padrão desejado pelo projeto da disciplina)
+------------------------
+
+Passo para verificar localmente:
+  gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
