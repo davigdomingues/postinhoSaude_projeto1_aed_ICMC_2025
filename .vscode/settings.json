@@ -2,6 +2,7 @@
     "files.associations": {
         "IO.C": "c",
         "unistd.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "patient_tree.h": "c"
     }
 }

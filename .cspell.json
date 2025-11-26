@@ -1,0 +1,22 @@
+{
+    "version": "0.2",
+    "language": "en,pt-BR",
+    "words": [
+        "ptree",
+        "ptree_inorder",
+        "ptree_history",
+        "PostinhoSUS",
+        "LGPD",
+        "CP1252",
+        "ptree_get_name",
+        "qset_add",
+        "qset_init",
+        "util_printf"
+    ],
+    "ignoreRegExpList": [
+        "/^[A-Za-z0-9_]+$/", // ignora tokens que são só identificadores
+        "/\\bID\\b/", // ignora a sigla ID
+        "/\\/\\/.*$/", // opcional: ignora comentários de linha (se preferir)
+        "/\\b[A-Z_]{2,}\\b/" // ignora siglas maiúsculas longas (LGPD, CPU, etc)
+    ]
+}
