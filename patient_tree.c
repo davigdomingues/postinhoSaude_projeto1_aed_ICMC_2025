@@ -137,7 +137,7 @@ static PatientNode *min_node(PatientNode *n){
  * 1. Busca recursiva por id.
  * 2. Libera histórico ao remover nó alvo.
  * 3. Caso 0 ou 1 filho: retorna filho direto.
- * 4. Caso 2 filhos: troca dados com sucessor e remove sucessor recursivamente.
+ * 4. Caso 2 filhos: troca dados com sucessor in-order para simplificar lógica.
  * 5. Rebalanceia subárvore afetada.
  * *rcode = 0 sucesso, -1 não encontrado.
  */
@@ -149,11 +149,14 @@ static PatientNode *avl_remove(PatientNode *root, const char *id, int *rcode){
     else if(cmp > 0)
         root->right = avl_remove(root->right,id,rcode);
     else {
-        /* encontrado: liberar histórico antes de ajustar nó */
-        if(root->data.hist) history_destroy(root->data.hist);
+        /* encontrado: NÃO destruir history aqui, pois em caso de dois filhos
+           haverá um swap de dados e o histórico deve ser destruído apenas quando
+           o nó é realmente liberado. */
         if(!root->left || !root->right){
             /* caso simples: 0 ou 1 filho */
             PatientNode *tmp = root->left ? root->left : root->right;
+            /* destruir histórico do nó que será removido */
+            if(root->data.hist) history_destroy(root->data.hist);
             free(root);
             *rcode = 0;
             return tmp;
@@ -164,8 +167,8 @@ static PatientNode *avl_remove(PatientNode *root, const char *id, int *rcode){
             Patient tmpd = root->data;
             root->data = succ->data;
             succ->data = tmpd;
-            /* remove sucessor com id antigo */
-            root->right = avl_remove(root->right, id, rcode);
+            /* remove sucessor com o id que estava originalmente em root (tmpd.id) */
+            root->right = avl_remove(root->right, tmpd.id, rcode);
         }
     }
     if(!root) return NULL;
