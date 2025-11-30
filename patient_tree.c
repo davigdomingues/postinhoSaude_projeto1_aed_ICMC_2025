@@ -18,6 +18,7 @@ typedef struct Patient {
     char name[MAX_NAME_LEN+1];
     History *hist;   /* histórico de procedimentos (pilha fixa) */
     bool called;     /* flag se foi chamado */
+    int  priority;   /* prioridade registrada (1..5) */
 } Patient;
 
 /* Nó AVL: contém dados + filhos + altura para balanceamento. */
@@ -81,6 +82,7 @@ static PatientNode *new_node(const char *id, const char *name){
     strncpy(n->data.name,name,MAX_NAME_LEN); n->data.name[MAX_NAME_LEN]='\0';
     n->data.hist = history_create();
     n->data.called = false;
+    n->data.priority = 5; /* default para antigos registros no arquivo data.bin */
     n->left = n->right = NULL;
     n->height = 1;
     if(!n->data.hist){ free(n); return NULL; }
@@ -321,4 +323,18 @@ int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, 
     PatientNode *n = find_node((PatientNode*)t->root, id);
     if (!n || !n->data.hist) return -1;
     return history_get_by_index(n->data.hist, hist_idx, out, out_size);
+}
+
+int ptree_set_priority(PatientTree *t, const char *id, int pri){
+    if(!t || !id) return -1;
+    if(pri < 1 || pri > 5) return -1;
+    PatientNode *n = find_node(t->root,id);
+    if(!n) return -1;
+    n->data.priority = pri;
+    return 0;
+}
+int ptree_get_priority(const PatientTree *t, const char *id){
+    if(!t || !id) return 5;
+    PatientNode *n = find_node((PatientNode*)t->root,id);
+    return n ? n->data.priority : 5;
 }
