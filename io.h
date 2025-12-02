@@ -1,5 +1,5 @@
 /* Explicação:
- * - io_save(const char *path, const PatientTree *pt, const Queue *q)
+ * - io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq)
  *     Persiste as estruturas em disco. Modo de escrita (resumo dos passos):
  *       1) Cria um caminho temporário (path + ".tmp").
  *       2) Abre o ficheiro temporário em modo texto para escrita.
@@ -11,7 +11,7 @@
  *       - Não é usado locking de ficheiro neste módulo; se for necessário concorrência, acrescente lock externo.
  *       - io_save retorna 0 em sucesso e -1 em caso de erro de I/O (criação/ escrita / rename).
  *
- * - io_load(const char *path, PatientTree *pt, Queue *q)
+ * - io_load(const char *path, PatientTree *pt, PriorityQueue *pq)
  *     Lê e reconstrói as estruturas a partir do ficheiro em 'path' seguindo exatamente o formato
  *     escrito por io_save. Procede com validações simples (fgets/fscanf + chomp); se linhas faltarem
  *     ou o formato não corresponder, aborta e retorna -2 (erro de formato/leitura). Se o ficheiro não
@@ -25,8 +25,11 @@
  *    c) n_history (int) (linha)         -- número de entradas do histórico
  *    d) entradas do histórico (n_history linhas)
  *    e) called_flag (0/1) (linha)       -- se foi chamado (1) ou não (0)
+ *    f) priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
  * 3) tamanho da fila (int) (linha)      -- número de IDs que seguem
- * 4) ids da fila (uma por linha, na ordem do atendimento)
+ * 4) para cada item da fila:
+ *    id (linha)
+ *    priority (int) (linha) -- formato novo; se ausente em ficheiros antigos, assume 5 (menor prioridade)
  *
  * Regras/limitações do formato:
  * - Cada linha termina com '\n'; entradas podem conter espaços e colchetes (sem escapamento).
@@ -45,7 +48,7 @@
 #ifndef IO_H
 #define IO_H
 #include "patient_tree.h"
-#include "queue.h"
+#include "priority_queue.h"
  
  /*
   * io_save/io_load formato (texto):
@@ -56,8 +59,11 @@
   *    n_history (int) (linha)
   *    entradas do histórico (n_history linhas)
   *    called_flag (0/1) (linha)
+  *    priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
   * 3) tamanho da fila (int) (linha)
-  * 4) ids da fila (uma por linha, na ordem)
+  * 4) para cada item da fila:
+  *    id (linha)
+  *    priority (int) (linha) -- se estiver ausente em ficheiros antigos, assume 5 (menor prioridade)
   */
  
  /*
@@ -71,7 +77,7 @@
   *   configurando o ficheiro para UTF-8 (ex.: iconv ou PowerShell) antes de executar.
   */
  
-int io_save(const char *path, const PatientTree *pt, const Queue *q); // 0 ok, -1 erro
-int io_load(const char *path, PatientTree *pt, Queue *q); // 0 ok, -1 sem arquivo, -2 erro
+int io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq); // 0 ok, -1 erro
+int io_load(const char *path, PatientTree *pt, PriorityQueue *pq); // 0 ok, -1 sem arquivo, -2 erro
  
  #endif

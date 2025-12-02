@@ -18,6 +18,8 @@ int  ptree_insert(PatientTree *t, const char *id, const char *name); /* 0 ok, -1
 int  ptree_remove(PatientTree *t, const char *id); /* 0 ok, -1 não achou */
 int  ptree_set_called(PatientTree *t, const char *id, bool called);
 int  ptree_is_called(const PatientTree *t, const char *id);
+int  ptree_set_priority(PatientTree *t, const char *id, int pri);
+int  ptree_get_priority(const PatientTree *t, const char *id);
 
 int  ptree_get_name(const PatientTree *t, const char *id, char *out, size_t out_size);
 int  ptree_exists(const PatientTree *t, const char *id); /* 1 existe, 0 não existe */

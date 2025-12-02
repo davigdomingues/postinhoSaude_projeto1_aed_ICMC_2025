@@ -38,10 +38,10 @@
 
 /* adicionados para garantir protótipos usados no callback */
 #include "patient_tree.h"
-#include "queue.h"  
+#include "priority_queue.h"  
 
 /* Forward declaration: torna o tipo e o callback visíveis antes do uso em io_save */
-struct SaveCtx { FILE *f; const PatientTree *pt; const Queue *q; };
+struct SaveCtx { FILE *f; const PatientTree *pt; const PriorityQueue *pq; };
 static void write_patient_cb(const char *id, const char *name, bool called, void *ud);
 
 /* Remove terminadores de linha CR/LF do fim da string lida com fgets */
@@ -67,7 +67,7 @@ static void chomp(char *s) {
    - Se fclose ok, remove(path) e rename(tmp,path) para realizar substituicao atomica simples
    - Em caso de qualquer erro de escrita/leitura retorna -1 (io_save) e o chamador pode avisar o usuario
 */
-int io_save(const char *path, const PatientTree *pt, const Queue *q) {
+int io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq) {
     /* grava para ficheiro temporário e substitui apenas em sucesso */
     char tmp[512];
     int n = snprintf(tmp, sizeof(tmp), "%s.tmp", path);
@@ -82,17 +82,19 @@ int io_save(const char *path, const PatientTree *pt, const Queue *q) {
     fprintf(f, "%lu\n", (unsigned long)n_pat);
 
     /* context passado para o callback: arquivo, árvore e fila */
-    struct SaveCtx ctx = { f, pt, q };
+    struct SaveCtx ctx = { f, pt, pq };
 
     /* percorre a árvore e escreve cada paciente */
     ptree_inorder(pt, write_patient_cb, &ctx);
 
-    int qsize = queue_size(q);
+    int qsize = pqueue_size(pq);
     fprintf(f, "%d\n", qsize);
     for (int i = 0; i < qsize; ++i) {
         char id[MAX_ID_LEN + 2];
-        if (queue_get_id_by_index(q, i, id, sizeof(id)) != 0) continue;
-        fprintf(f, "%s\n", id);
+        int prio = 0;
+        if (pqueue_get_id_by_index(pq, i, id, sizeof(id)) != 0) continue;
+        if (pqueue_get_priority_by_index(pq, i, &prio) != 0) prio = 5;
+        fprintf(f, "%s\n%d\n", id, prio);
     }
 
     /* fechar e garantir que foi gravado */
@@ -152,7 +154,7 @@ static void normalize_to_utf8_inplace(char *s, size_t buf_size) {
    - Depois le tamanho da fila e enfileira os ids lidos (queue_enqueue), ignorando overflow da fila
    - Em caso de qualquer leitura inesperada retorna -2 e nao altera mais o estado
 */
-int io_load(const char *path, PatientTree *pt, Queue *q) {
+int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
     FILE *f = fopen(path, "r");
     if (!f)
         return -1;
@@ -225,29 +227,49 @@ int io_load(const char *path, PatientTree *pt, Queue *q) {
         }
 
         ptree_set_called(pt, id, called_flag ? true : false);
+
+        /* tentar ler prioridade do paciente (compatível com ficheiros antigos) */
+        long pos_after_called = ftell(f);
+        int pri_read = 5, maybe_pri = 0;
+
+        if (fscanf(f, "%d\n", &maybe_pri) == 1 && maybe_pri >= 1 && maybe_pri <= 5)
+            pri_read = maybe_pri;
+        
+        else
+            /* voltar se não havia prioridade (formato antigo) */
+            fseek(f, pos_after_called, SEEK_SET);
+
+        (void)ptree_set_priority(pt, id, pri_read);
     }
 
     int m = 0;
-
-    if (fscanf(f, "%d\n", &m) != 1) {
-        fclose(f);
-        return -2;
+    if (fscanf(f, "%d\n", &m) != 1) { 
+        fclose(f); 
+        return -2; 
     }
 
     for (int i = 0; i < m; ++i) {
         char id[MAX_ID_LEN + 2];
-
-        if (!fgets(id, sizeof(id), f)) {
-            fclose(f);
-            return -2;
+        if (!fgets(id, sizeof(id), f)) { 
+            fclose(f); 
+            return -2; 
         }
-
+        
         chomp(id);
-        /* normaliza id da fila e enfileira */
+        // normaliza id da fila de prioridades e enfileira.
         normalize_to_utf8_inplace(id, sizeof(id));
-        (void)queue_enqueue(q, id); /* ignora overflow */
+        /* tenta ler prioridade; se falhar, usa 5 (compatibilidade) */
+        int prio = 5;
+        long pos = ftell(f);
+        int maybe;
+        if (fscanf(f, "%d\n", &maybe) == 1 && maybe >= 1 && maybe <= 5) {
+            prio = maybe;
+        } else {
+            /* rewind para pos se leitura inválida (ficheiro antigo sem prioridade) */
+            fseek(f, pos, SEEK_SET);
+        }
+        (void)pqueue_enqueue(pq, id, prio);
     }
-
     fclose(f);
     return 0;
 }
@@ -366,9 +388,14 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
 
     /* called_flag: se estiver na fila, guardamos 0; caso contrário usamos a flag em memória */
     int called_flag = 0;
-    if (c->q && queue_contains(c->q, id))
+    /* chamado: verifica se está na fila de prioridades */
+    if (c->pq && pqueue_contains(c->pq, id))
         called_flag = 0;
     else
         called_flag = ptree_is_called(c->pt, id) ? 1 : 0;
     fprintf(wf, "%d\n", called_flag);
+    /* novo: prioridade registrada do paciente */
+    int pri = ptree_get_priority(c->pt, id);
+    if (pri < 1 || pri > 5) pri = 5;
+    fprintf(wf, "%d\n", pri);
 }

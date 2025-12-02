@@ -18,6 +18,7 @@ typedef struct Patient {
     char name[MAX_NAME_LEN+1];
     History *hist;   /* histórico de procedimentos (pilha fixa) */
     bool called;     /* flag se foi chamado */
+    int  priority;   /* prioridade registrada (1..5) */
 } Patient;
 
 /* Nó AVL: contém dados + filhos + altura para balanceamento. */
@@ -81,6 +82,7 @@ static PatientNode *new_node(const char *id, const char *name){
     strncpy(n->data.name,name,MAX_NAME_LEN); n->data.name[MAX_NAME_LEN]='\0';
     n->data.hist = history_create();
     n->data.called = false;
+    n->data.priority = 5; /* default para antigos registros no arquivo data.bin */
     n->left = n->right = NULL;
     n->height = 1;
     if(!n->data.hist){ free(n); return NULL; }
@@ -137,7 +139,7 @@ static PatientNode *min_node(PatientNode *n){
  * 1. Busca recursiva por id.
  * 2. Libera histórico ao remover nó alvo.
  * 3. Caso 0 ou 1 filho: retorna filho direto.
- * 4. Caso 2 filhos: troca dados com sucessor e remove sucessor recursivamente.
+ * 4. Caso 2 filhos: troca dados com sucessor in-order para simplificar lógica.
  * 5. Rebalanceia subárvore afetada.
  * *rcode = 0 sucesso, -1 não encontrado.
  */
@@ -149,11 +151,14 @@ static PatientNode *avl_remove(PatientNode *root, const char *id, int *rcode){
     else if(cmp > 0)
         root->right = avl_remove(root->right,id,rcode);
     else {
-        /* encontrado: liberar histórico antes de ajustar nó */
-        if(root->data.hist) history_destroy(root->data.hist);
+        /* encontrado: NÃO destruir history aqui, pois em caso de dois filhos
+           haverá um swap de dados e o histórico deve ser destruído apenas quando
+           o nó é realmente liberado. */
         if(!root->left || !root->right){
             /* caso simples: 0 ou 1 filho */
             PatientNode *tmp = root->left ? root->left : root->right;
+            /* destruir histórico do nó que será removido */
+            if(root->data.hist) history_destroy(root->data.hist);
             free(root);
             *rcode = 0;
             return tmp;
@@ -164,8 +169,8 @@ static PatientNode *avl_remove(PatientNode *root, const char *id, int *rcode){
             Patient tmpd = root->data;
             root->data = succ->data;
             succ->data = tmpd;
-            /* remove sucessor com id antigo */
-            root->right = avl_remove(root->right, id, rcode);
+            /* remove sucessor com o id que estava originalmente em root (tmpd.id) */
+            root->right = avl_remove(root->right, tmpd.id, rcode);
         }
     }
     if(!root) return NULL;
@@ -318,4 +323,18 @@ int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, 
     PatientNode *n = find_node((PatientNode*)t->root, id);
     if (!n || !n->data.hist) return -1;
     return history_get_by_index(n->data.hist, hist_idx, out, out_size);
+}
+
+int ptree_set_priority(PatientTree *t, const char *id, int pri){
+    if(!t || !id) return -1;
+    if(pri < 1 || pri > 5) return -1;
+    PatientNode *n = find_node(t->root,id);
+    if(!n) return -1;
+    n->data.priority = pri;
+    return 0;
+}
+int ptree_get_priority(const PatientTree *t, const char *id){
+    if(!t || !id) return 5;
+    PatientNode *n = find_node((PatientNode*)t->root,id);
+    return n ? n->data.priority : 5;
 }
