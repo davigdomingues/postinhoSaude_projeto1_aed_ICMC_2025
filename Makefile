@@ -26,7 +26,7 @@ ifeq ($(UNAME_S),Linux)
 endif
 
 # Saída sempre no diretório do projeto
-OUT = ./main$(EXE)
+OUT = $(DOT)/main$(EXE)
 
 MKDIR_P = mkdir -p
 RM = rm -f
