@@ -327,13 +327,12 @@ int main(){
                     
                     else {
                         int pri;
-
-                        for(;;){
+                        for (;;) {
                             printf("Prioridade (1 = Emergencia, 2 = Muito urgente, 3 = Urgente, 4 = Pouco urgente, 5 = Nao urgencia): ");
-                            char pbuf[16]; read_line(pbuf,sizeof(pbuf));
+                            char pbuf[16];
+                            read_line(pbuf, sizeof(pbuf));
                             pri = atoi(pbuf);
-
-                            if(pri>=1 && pri<=5) 
+                            if (pri >= 1 && pri <= 5)
                                 break;
 
                             message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
@@ -402,10 +401,10 @@ int main(){
 
                 for(;;){
                     printf("Prioridade (1 = Emergencia, 2 = Muito urgente, 3 = Urgente, 4 = Pouco urgente, 5 = Nao urgencia): ");
-                    char pbuf[16]; read_line(pbuf,sizeof(pbuf));
+                    char pbuf[16];
+                    read_line(pbuf, sizeof(pbuf));
                     pri = atoi(pbuf);
-
-                    if (pri>=1 && pri<=5) 
+                    if (pri >= 1 && pri <= 5)
                         break;
 
                     message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
