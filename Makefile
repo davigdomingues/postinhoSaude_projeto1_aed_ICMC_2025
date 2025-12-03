@@ -1,6 +1,6 @@
-# Makefile básico: compila todos os .c no diretório e produz output/main(.exe em Windows)
+# Makefile básico: compila todos os .c no diretório e produz /main(.exe em Windows)
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -g3
+CFLAGS = -std=c99 -pedantic -Wall -Wextra -g3
 CPPFLAGS = -I.
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.o,$(SRCS))
