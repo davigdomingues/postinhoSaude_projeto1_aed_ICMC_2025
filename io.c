@@ -1,11 +1,7 @@
-/* Explicação:
- *
- * Propósito:
- * - Serializar (salvar) e desserializar (carregar) as estruturas centrais do
- *   sistema: a lista de pacientes (PatientList) e a fila de espera (Queue).
- * - O ficheiro usa um formato textual simples, legível, onde cada
- *   item é escrito em linha separada seguindo uma ordem estrita definida por io_save
- *   e esperada por io_load.
+/* Módulo de I/O (persistência textual)
+ * - Salva/carrega PatientTree e PriorityQueue em formato legível.
+ * - Escrita segura para .tmp e rename; leitura valida e normaliza encoding.
+ * - Não acessa campos internos de History; usa wrappers da árvore.
  *
  * Funções exportadas (declaradas em io.h):
  * - io_save(const char *path, const PatientList *pl, const Queue *q)

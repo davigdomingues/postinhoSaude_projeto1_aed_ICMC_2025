@@ -20,13 +20,13 @@
  * Formato textual detalhado (linha por linha):
  * 1) number_of_patients (unsigned long) em sua própria linha
  * 2) para cada paciente (repetir number_of_patients vezes):
- *    a) id (linha)                      -- string terminada por '\n'
- *    b) name (linha)                    -- string terminada por '\n'
- *    c) n_history (int) (linha)         -- número de entradas do histórico
+ *    a) id (linha) -- string terminada por '\n'
+ *    b) name (linha) -- string terminada por '\n'
+ *    c) n_history (int) (linha) -- número de entradas do histórico
  *    d) entradas do histórico (n_history linhas)
- *    e) called_flag (0/1) (linha)       -- se foi chamado (1) ou não (0)
+ *    e) called_flag (0/1) (linha) -- se foi chamado (1) ou não (0)
  *    f) priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
- * 3) tamanho da fila (int) (linha)      -- número de IDs que seguem
+ * 3) tamanho da fila (int) (linha) -- número de IDs que seguem
  * 4) para cada item da fila:
  *    id (linha)
  *    priority (int) (linha) -- formato novo; se ausente em ficheiros antigos, assume 5 (menor prioridade)
