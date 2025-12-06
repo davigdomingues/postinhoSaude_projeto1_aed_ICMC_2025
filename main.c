@@ -339,84 +339,9 @@ int main(){
                             message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
                         }
 
-                        ////////
-
-                        char item[PROC_MAX_LEN + 1];
-
-                        if(pri>=1 && pri<=3) {
-                            for(;;) {
-                                if (ptree_history_is_full(pt, id)) {
-                                    message_and_clear("Historico cheio. Retornando ao submenu...", MSG_WAIT_SHORT);
-                                    continue;
-                                }
-
-                                /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
-                                char proc[PROC_MAX_LEN + 1];
-                                printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN);
-                                read_line(proc, sizeof(proc));
-
-                                if (read_line_truncated()) {
-                                    message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
-                                    continue;
-                                }
-
-                                if (proc[0] == '\0') {
-                                    message_and_clear("Descricao vazia. Tente novamente.", MSG_WAIT_SHORT);
-                                    continue;
-                                }
-
-                                /* obtêm timestamp formatado (se disponível)*/
-                                char timestr[32] = {0};
-
-                                if (format_timestamp(timestr, sizeof(timestr)) != 0)
-                                    timestr[0] = '\0';
-
-                                /* monta item com timestamp seguro e truncado para PROC_MAX_LEN */
-                                item[0] = '\0';
-
-                                if (timestr[0] != '\0') {
-                                    /* escreve somente o prefixo "[timestr]" e depois concatena o proc
-                                    limitando a cópia ao espaço restante, para evitar warnings do compilador */
-                                    int pref = snprintf(item, sizeof(item), "[%s] ", timestr);
-
-                                    if (pref < 0) 
-                                        pref = 0;
-
-                                    size_t used = (size_t)pref;
-
-                                    if (used >= sizeof(item))
-                                        /* já cheio, garante terminação */
-                                        item[sizeof(item) - 1] = '\0';
-                                    
-                                    else {
-                                        size_t avail = sizeof(item) - used - 1; // espaço restante para chars + '\0
-                                        strncat(item, proc, avail);
-                                        // strncat usa o espaço disponível, garantindo terminação
-                                    }
-
-                                } 
-                                
-                                else {
-                                    // sem timestamp: copia procedure com segurança
-                                    strncpy(item, proc, sizeof(item) - 1);
-                                    item[sizeof(item) - 1] = '\0';
-                                }
-
-                                break;
-                            }
-                        }
-
-                        ////////
-
                         pqueue_enqueue(q, id, pri);
                         (void)ptree_set_called(pt, id, false);
                         (void)ptree_set_priority(pt, id, pri);
-                        if(pri>=1 && pri<=3) {
-                            if (ptree_history_push(pt, id, item) == 0)
-                                printf("Procedimento adicionado.\n");
-                            else
-                                printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
-                        }
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
                         reinInserted = 1; /* já reinserido, pular cadastro */
                         break;
@@ -486,74 +411,8 @@ int main(){
                     message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
                 }
 
-                char item[PROC_MAX_LEN + 1];
-
-                if(pri>=1 && pri<=3) {
-                    for(;;) {
-                            /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
-                            char proc[PROC_MAX_LEN + 1];
-                            printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN);
-                            read_line(proc, sizeof(proc));
-
-                            if (read_line_truncated()) {
-                                message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
-                                continue;
-                            }
-
-                            if (proc[0] == '\0') {
-                                message_and_clear("Descricao vazia. Tente novamente.", MSG_WAIT_SHORT);
-                                continue;
-                            }
-
-                            /* obtêm timestamp formatado (se disponível)*/
-                            char timestr[32] = {0};
-
-                            if (format_timestamp(timestr, sizeof(timestr)) != 0)
-                                timestr[0] = '\0';
-
-                            /* monta item com timestamp seguro e truncado para PROC_MAX_LEN */
-                            item[0] = '\0';
-
-                            if (timestr[0] != '\0') {
-                                /* escreve somente o prefixo "[timestr]" e depois concatena o proc
-                                limitando a cópia ao espaço restante, para evitar warnings do compilador */
-                                int pref = snprintf(item, sizeof(item), "[%s] ", timestr);
-
-                                if (pref < 0) 
-                                    pref = 0;
-
-                                size_t used = (size_t)pref;
-
-                                if (used >= sizeof(item))
-                                    /* já cheio, garante terminação */
-                                    item[sizeof(item) - 1] = '\0';
-                                
-                                else {
-                                    size_t avail = sizeof(item) - used - 1; // espaço restante para chars + '\0
-                                    strncat(item, proc, avail);
-                                    // strncat usa o espaço disponível, garantindo terminação
-                                }
-
-                            } 
-                            
-                            else {
-                                // sem timestamp: copia procedure com segurança
-                                strncpy(item, proc, sizeof(item) - 1);
-                                item[sizeof(item) - 1] = '\0';
-                            }
-
-                            break;
-                    }
-                }
-
                 pqueue_enqueue(q, id, pri);
                 (void)ptree_set_priority(pt, id, pri);
-                if(pri>=1 && pri<=3) {
-                    if (ptree_history_push(pt, id, item) == 0)
-                        printf("Procedimento adicionado.\n");
-                    else
-                        printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
-                }
                 printf("Paciente inserido na fila.\n");
             }
 
@@ -638,14 +497,8 @@ int main(){
 
             /* Uso de callback C puro */
             ptree_inorder(pt, list_cb, pt);
+            message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
 
-            {
-                char __tmp_wait[8];
-                printf("\nPressione Enter para retornar ao menu");
-                fflush(stdout);
-                read_line(__tmp_wait, sizeof(__tmp_wait));
-                clear_screen();
-            }
         } 
         
         else if (opc == 4) { // Buscar paciente por ID
@@ -785,13 +638,8 @@ int main(){
                             util_printf("%d) %s\n", i + 1, item);
                     }
                     
-                    {
-                        char __tmp_wait[8];
-                        printf("\nPressione Enter para retornar ao submenu");
-                        fflush(stdout);
-                        read_line(__tmp_wait, sizeof(__tmp_wait));
-                        clear_screen();
-                    }
+                    message_and_clear("Retornando ao submenu...", MSG_WAIT_MEDIUM);
+
                 } 
                 
                 else if (sub == 4) // voltar ao menu principal
@@ -854,13 +702,7 @@ int main(){
                     util_printf("%d: %s - %s (P%d)\n", i + 1, id, name, pri);
                 }
 
-                {
-                    char __tmp_wait[8];
-                    printf("\nPressione Enter para retornar ao menu");
-                    fflush(stdout);
-                    read_line(__tmp_wait, sizeof(__tmp_wait));
-                    clear_screen();
-                }
+                message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
 
         } else if (opc == 7) { // Dar alta
