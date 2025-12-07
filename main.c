@@ -1,7 +1,7 @@
 /* 
 Este código contém a função main() da aplicação "postinho de saúde".
 Objetivo geral:
-- Gerir uma lista de pacientes (pl) e uma fila de espera (q).
+- Gerir uma arvore de pacientes (pt) e uma fila de espera com prioridade (q).
 - Fornecer um menu simples em linha de comando para registrar pacientes,
   registrar obito de paciente,
   adicionar/desfazer procedimentos no histórico,
@@ -9,22 +9,22 @@ Objetivo geral:
 
 Inclusões e módulos:
 - config.h: constantes de configuração (tamanhos máximos, capacidade da fila).
-- patient_list.h: interface para manipular a lista de pacientes (inserir, buscar, obter, liberar).
-- queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, verificar existência/cheia, liberar).
+- patient_tree.h: interface para manipular a árvore balanceada de pacientes (inserir, buscar, obter, liberar).
+- priority_queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, verificar existência/cheia, liberar).
 - history.h: interface para o histórico de procedimentos por paciente (push, pop, verificar cheio).
 - io.h: funções para salvar/carregar dados persistentes (io_save, io_load).
 - util.h: utilitários de I/O (read_line, util_printf, format_timestamp).
 - clear_screen.h: header para limpar a tela
 
 Estruturas usadas em runtime (alocadas dinamicamente):
-- PatientList *pl;  // ponteiro para a lista de pacientes alocada por plist_create()
-- Queue *q;         // ponteiro para a fila de espera alocada por queue_create()
+- PatientTree *pt;  // ponteiro para a árvore de pacientes alocada por ptree_create()
+- PriorityQueue *q;         // ponteiro para a fila de espera alocada por queue_create()
 - clear_screen.h: utilidades de UI (limpar tela, mensagens temporizadas).
 
 Fluxo principal (main):
 1. Inicialização:
-   - plist_create(): prepara a estrutura da lista de pacientes.
-   - queue_create(WAIT_CAP): cria a fila com capacidade definida em config.h.
+   - ptree_create(): prepara a estrutura da árvore de pacientes.
+   - pqueue_create(WAIT_CAP): cria a fila de prioridade com capacidade definida em config.h.
 
 2. Loop do menu:
    - Exibe opções numeradas de 1 a 8.
@@ -32,17 +32,17 @@ Fluxo principal (main):
    - Cada opção chama funções dos módulos correspondentes e realiza verificações:
 
      1) Registrar paciente:
-        - Lê ID e verifica se já existe (plist_find_index).
-        - Se não existir, lê nome e insere (plist_insert).
+        - Lê ID e verifica se já existe (ptree_exists)).
+        - Se não existir, lê nome e insere (ptree_insert).
         - Se o paciente já existir, ele pode ser reinscrito na fila, desde que seja informado o ID correto, a primeira vista.
-        - Tenta enfileirar o paciente (queue_enqueue) com checagens: fila cheia (queue_is_full) ou paciente já na fila (queue_contains).
+        - Tenta enfileirar o paciente (pqueue_enqueue) com checagens: fila cheia (pqueue_is_full) ou paciente já na fila (pqueue_contains).
 
      2) Registrar óbito de paciente:
-        - Lê ID e remove da fila (queue_remove). Retorno 0 => sucesso.
-        - Remove paciente da lista (plist_remove).
+        - Lê ID e remove da fila (pqueue_remove). Retorno 0 => sucesso.
+        - Remove paciente da árvore (ptree_remove).
 
      3) Adicionar procedimento ao histórico:
-        - Lê ID e busca paciente (plist_get). Se não encontrado, avisa.
+        - Lê ID e busca paciente (ptree_get). Se não encontrado, avisa.
         - Verifica se histórico cheio (history_is_full).
         - Lê descrição do procedimento e faz history_push(&p->hist, proc).
 
@@ -50,8 +50,8 @@ Fluxo principal (main):
         - Lê ID, obtém paciente e faz history_pop(&p->hist, out, sizeof(out)).
 
      5) Chamar próximo:
-        - queue_dequeue(&q, id, sizeof(id)) remove o próximo da fila e coloca o ID em 'id'.
-        - Usa plist_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
+        - pqueue_dequeue(&pq, id, sizeof(id)) remove o próximo da fila e coloca o ID em 'id'.
+        - Usa ptree_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
 
      6) Mostrar fila:
         - lista a fila resolvendo nomes via PatientList (sem usar função de impressão do TAD).
@@ -71,7 +71,7 @@ Tratamento de erros e convenções:
 - Mensagens informativas são exibidas ao usuário em cada caminho de execução.
 
 Limpeza:
-- Antes de terminar, a aplicação chama queue_destroy(q) e plist_destroy(pl) para libertar recursos dinâmicos alocados pelos módulos.
+- Antes de terminar, a aplicação chama pqueue_destroy(q) e ptree_destroy(pt) para libertar recursos dinâmicos alocados pelos módulos.
 
 Observações de integração:
 - A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_list, queue, history, io, util).
