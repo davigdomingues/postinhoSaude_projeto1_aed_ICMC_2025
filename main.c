@@ -1,30 +1,30 @@
 /* 
 Este código contém a função main() da aplicação "postinho de saúde".
 Objetivo geral:
-- Gerir uma lista de pacientes (pl) e uma fila de espera (q).
-- Fornecer um menu simples em linha de comando para registrar pacientes,
-  registrar obito de paciente,
-  adicionar/desfazer procedimentos no histórico,
-  chamar o próximo, mostrar a fila, exibir histórico e salvar os dados ao sair.
+- Gerir uma árvore de pacientes (PatientTree, pt) e uma fila de prioridades (PriorityQueue, q).
+- Fornecer um menu simples em linha de comando para:
+  cadastrar pacientes, registrar óbito, adicionar/desfazer procedimentos no histórico,
+  chamar o próximo por prioridade, mostrar a fila, exibir histórico e salvar os dados ao sair.
 
-Inclusões e módulos:
-- config.h: constantes de configuração (tamanhos máximos, capacidade da fila).
-- patient_list.h: interface para manipular a lista de pacientes (inserir, buscar, obter, liberar).
-- queue.h: interface para fila de espera (inicializar, enfileirar, desenfileirar, verificar existência/cheia, liberar).
-- history.h: interface para o histórico de procedimentos por paciente (push, pop, verificar cheio).
-- io.h: funções para salvar/carregar dados persistentes (io_save, io_load).
-- util.h: utilitários de I/O (read_line, util_printf, format_timestamp).
-- clear_screen.h: header para limpar a tela
+Módulos utilizados:
+- config.h: constantes de configuração (tamanhos máximos, capacidade da fila, caminhos).
+- patient_tree.h: TAD de pacientes em árvore AVL (inserir, remover, buscar, flags, prioridade, histórico).
+- priority_queue.h: TAD fila de prioridades (enfileirar/desenfileirar, acesso por índice, consulta de existência).
+- history.h: histórico de procedimentos por paciente (push/pop/size/get_by_index).
+- io.h: persistência textual: io_save/io_load para PatientTree + PriorityQueue (compatível com UTF-8).
+- util.h: utilitários (read_line, util_printf UTF-8, format_timestamp, locale).
+- clear_screen.h: utilidades de UI (limpar tela e mensagens temporizadas).
 
 Estruturas usadas em runtime (alocadas dinamicamente):
-- PatientList *pl;  // ponteiro para a lista de pacientes alocada por plist_create()
-- Queue *q;         // ponteiro para a fila de espera alocada por queue_create()
-- clear_screen.h: utilidades de UI (limpar tela, mensagens temporizadas).
+- PatientTree *pt;      // árvore AVL de pacientes
+- PriorityQueue *q;     // fila de prioridades (1..5)
 
 Fluxo principal (main):
 1. Inicialização:
-   - plist_create(): prepara a estrutura da lista de pacientes.
-   - queue_create(WAIT_CAP): cria a fila com capacidade definida em config.h.
+   - util_setup_locale(): prepara ambiente/console para UTF-8.
+   - ptree_create(): cria árvore de pacientes.
+   - pqueue_create(WAIT_CAP): cria fila de prioridades com capacidade definida em config.h.
+   - io_load(DATA_FILE, pt, q): carrega dados (pacientes, históricos e fila).
 
 2. Loop do menu:
    - Exibe opções numeradas de 1 a 8.
@@ -32,49 +32,55 @@ Fluxo principal (main):
    - Cada opção chama funções dos módulos correspondentes e realiza verificações:
 
      1) Registrar paciente:
-        - Lê ID e verifica se já existe (plist_find_index).
-        - Se não existir, lê nome e insere (plist_insert).
-        - Se o paciente já existir, ele pode ser reinscrito na fila, desde que seja informado o ID correto, a primeira vista.
-        - Tenta enfileirar o paciente (queue_enqueue) com checagens: fila cheia (queue_is_full) ou paciente já na fila (queue_contains).
+        - Lê ID (somente dígitos).
+        - Se já existe: permitir reinserção na fila, apenas se foi chamado e recebeu alta; atualiza prioridade e flags.
+        - Senão: insere na árvore (ptree_insert) e pode enfileirar com prioridade informada (pqueue_enqueue).
+        - Para prioridades 1..3, coleta "Razão da urgência" e registra no histórico.
 
-     2) Registrar óbito de paciente:
-        - Lê ID e remove da fila (queue_remove). Retorno 0 => sucesso.
-        - Remove paciente da lista (plist_remove).
+     2) Registrar óbito:
+        - Lê ID, verifica se não está na fila (pqueue_contains) e se foi chamado (ptree_is_called).
+        - Remove o paciente da árvore (ptree_remove).
 
-     3) Adicionar procedimento ao histórico:
-        - Lê ID e busca paciente (plist_get). Se não encontrado, avisa.
-        - Verifica se histórico cheio (history_is_full).
-        - Lê descrição do procedimento e faz history_push(&p->hist, proc).
+     3) Listar pacientes:
+        - Percorre a árvore em ordem (ptree_inorder) e imprime resumo (ID, nome, chamado, prioridade).
 
-     4) Desfazer último procedimento:
-        - Lê ID, obtém paciente e faz history_pop(&p->hist, out, sizeof(out)).
+     4) Buscar paciente por ID (submenu):
+        - Mostra dados básicos e estado de hospital/fila.
+        - Submenu disponível apenas se foi chamado; permite adicionar/desfazer e ver histórico completo.
 
-     5) Chamar próximo:
-        - queue_dequeue(&q, id, sizeof(id)) remove o próximo da fila e coloca o ID em 'id'.
-        - Usa plist_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
+     5) Chamar próximo por prioridade:
+        - pqueue_dequeue(q, id) obtém o próximo.
+        - Marca chamado (ptree_set_called(pt, id, true)) e informa nome.
 
      6) Mostrar fila:
-        - lista a fila resolvendo nomes via PatientList (sem usar função de impressão do TAD).
+        - Lista a fila resolvendo nomes pela árvore.
         - Se a fila estiver vazia, avisa o usuário.
 
-     7) Mostrar histórico:
-        - Obtém paciente e imprime p->hist.top + 1 itens.
-        - Se o histórico estiver vazio, avisa o usuário.
+     7) Dar alta:
+        - Somente se chamado, não está na fila e possui histórico >= 1.
+        - Registra alta no histórico com timestamp, reseta chamado = false e marca discharged = true.
 
      8) Sair:
-        - Salva dados em arquivo com io_save(DATA_FILE, &pl, &q) e sai do loop.
-        
-Tratamento de erros e convenções:
-- Muitas funções retornam 0 em caso de sucesso e valor != 0 em erro — o main assume essa convenção.
+        - io_save(DATA_FILE, pt, q) persiste pacientes (com flags e prioridades), históricos e fila.
+
+Convenções e I/O:
+- util_printf deve ser usado para strings com acentuação (UTF-8).
+- read_line/read_line_truncated protegem contra overflow e truncamento.
+- Módulos retornam 0 em sucesso e !=0 em erro (convenção adotada no main).
+- Muitas funções retornam 0 em caso de sucesso e valor != 0 em erro - o main assume essa convenção.
 - fgets() é usado para ler entrada do utilizador e evitar overflow; atoi() para converter a opção.
-- Variáveis temporárias (id, name, proc) usam tamanhos definidos em config.h (MAX_ID_LEN, MAX_NAME_LEN, PROC_MAX_LEN).
-- Mensagens informativas são exibidas ao usuário em cada caminho de execução.
+- Variáveis temporárias (id, name) usam tamanhos definidos em config.h (MAX_ID_LEN, MAX_NAME_LEN, PROC_MAX_LEN).
+- Mensagens informativas são exibidas via util_printf() ao usuário, em cada caminho de execução.
 
 Limpeza:
-- Antes de terminar, a aplicação chama queue_destroy(q) e plist_destroy(pl) para libertar recursos dinâmicos alocados pelos módulos.
+- pqueue_destroy(q) e ptree_destroy(pt) liberam recursos dinâmicos.
+
+Persistência:
+- io_load carrega PatientTree e PriorityQueue.
+- io_save grava pacientes (id, nome, histórico, chamado, prioridade, discharged), e a fila (id + prioridade).
 
 Observações de integração:
-- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_list, queue, history, io, util).
+- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (history, io, util, entre outros).
 - Persistência: main.c chama io_load(DATA_FILE, ...) no arranque e io_save(DATA_FILE, ...) ao sair.
   * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
   * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
