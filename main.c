@@ -74,7 +74,6 @@ Convenções e I/O:
 - Mensagens informativas são exibidas via util_printf() ao usuário, em cada caminho de execução.
 
 Limpeza:
-<<<<<<< HEAD
 - pqueue_destroy(q) e ptree_destroy(pt) liberam recursos dinâmicos.
 
 Persistência:
