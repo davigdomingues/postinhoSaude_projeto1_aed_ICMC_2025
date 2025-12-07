@@ -323,10 +323,21 @@ int main(){
                         message_and_clear("Fila cheia. Nao foi possivel inserir.", MSG_WAIT_SHORT);
                         reinInserted = 1; /* não cadastrar */
                         break;
-                    } 
-                    
+                    }
+
+                    /* só permite reinserção se foi chamado e recebeu alta */
                     else {
+                        int was_called = ptree_is_called(pt, id);
+                        int was_discharged = ptree_is_discharged(pt, id);
+                        
+                        if (!was_called || !was_discharged) {
+                            message_and_clear("Reinsercao negada: paciente precisa ter sido chamado e ter recebido alta.", MSG_WAIT_SHORT);
+                            reinInserted = 1;
+                            break;
+                        }
+
                         int pri;
+                        
                         for (;;) {
                             printf("Prioridade (1 = Emergencia, 2 = Muito urgente, 3 = Urgente, 4 = Pouco urgente, 5 = Nao urgencia): ");
                             char pbuf[16];
@@ -338,13 +349,21 @@ int main(){
                             message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
                         }
 
-                        pqueue_enqueue(q, id, pri);
-                        (void)ptree_set_called(pt, id, false);
-                        (void)ptree_set_priority(pt, id, pri);
-                        (void)ptree_set_discharged(pt, id, false); /* reset alta ao reinserir na fila */
-                        message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
-                        reinInserted = 1; /* já reinserido, pular cadastro */
-                        break;
+                        if (pqueue_enqueue(q, id, pri) == 0) {
+                            (void)ptree_set_called(pt, id, false);
+                            (void)ptree_set_priority(pt, id, pri);
+                            (void)ptree_set_discharged(pt, id, false); /* reset alta ao reinserir na fila */
+
+                            message_and_clear("Paciente reinserido na fila apos alta.", MSG_WAIT_SHORT);
+                            reinInserted = 1; // ja reinserido, pular cadasatro
+                            break;
+                        } 
+                        
+                        else {
+                            message_and_clear("Falha ao reinserir na fila.", MSG_WAIT_SHORT);
+                            reinInserted = 1;
+                            break;
+                        }
                     }
                 }
 
@@ -446,8 +465,8 @@ int main(){
                 }
             }
 
-            /* DEBUG: imprimir id lido e garantir flush */
-            util_printf("DEBUG: tentar remover id='%s'\n", id);
+            /* DEBUG: imprimir id lido e garantir flush 
+            util_printf("DEBUG: tentar remover id='%s'\n", id); */
             fflush(stdout);
 
             if (!ptree_exists(pt, id)) {
@@ -476,7 +495,7 @@ int main(){
 
             /* tenta remover e imprime codigo de retorno para diagnostico */
             int rem_rc = ptree_remove(pt, id);
-            util_printf("DEBUG: ptree_remove('%s') retornou %d\n", id, rem_rc);
+            // util_printf("DEBUG: ptree_remove('%s') retornou %d\n", id, rem_rc);
             fflush(stdout);
 
             if (rem_rc == 0)
@@ -518,15 +537,28 @@ int main(){
                 continue;
             }
 
-            /* imprime dados basicos e histórico resumido */
+            /* imprime dados basicos, histórico resumido e estado de internacao/fila */
             char name[MAX_NAME_LEN + 1];
+
             if (ptree_get_name(pt, id, name, sizeof(name)) != 0)
                 strncpy(name, "(desconhecido)", sizeof(name));
 
             int called = ptree_is_called(pt, id);
-            util_printf("Nome: %s | Chamado: %s\n", name, called ? "SIM" : "NAO");
+            int in_queue = pqueue_contains(q, id);
 
-            /* menu interno de acoes sobre o paciente */
+            util_printf("Nome: %s | Chamado: %s | Estado: %s%s\n",
+                        name,
+                        called ? "SIM" : "NAO",
+                        "No hospital",
+                        in_queue ? " e NA FILA" : "");
+
+            /* submenu somente se foi chamado */
+            if (!called) {
+                message_and_clear("Paciente ainda nao foi chamado. Submenu indisponivel.", MSG_WAIT_SHORT);
+                continue;
+            }
+
+            /* menu interno de acoes sobre o paciente (disponivel apenas se chamado) */
             for (;;) {
                 printf("\nOperacoes para ID %s:\n", id);
                 printf("1. Adicionar procedimento\n");
@@ -544,7 +576,7 @@ int main(){
                 clear_screen();
 
                 if (sub == 1) {
-                    /* Adicionar procedimento (reaproveita validacoes existentes) */
+                    /* Adicionar procedimento: permitido apenas porque chamado==true (gated acima), reaproveita validações existentes */
                     if (ptree_history_is_full(pt, id)) {
                         message_and_clear("Historico cheio. Retornando ao submenu...", MSG_WAIT_SHORT);
                         continue;
@@ -705,8 +737,10 @@ int main(){
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
 
-        } else if (opc == 7) {
-            /* Dar alta ao paciente: remove registro se já foi chamado e não estiver na fila */
+        } 
+        
+        else if (opc == 7) {
+            /* Dar alta ao paciente: apenas se foi chamado, nao esta na fila e possui historico >= 1 */
             char id[MAX_ID_LEN + 1];
             /* ORIGINAL (lista): printf("ID para dar alta: "); read_line(id, sizeof(id)); */
             printf("ID para dar alta: "); read_line(id, sizeof(id));
@@ -749,17 +783,27 @@ int main(){
                 continue;
             }
 
-            /* Registrar alta no historico e resetar flag 'called' */
+            // exige pelo menos um procedimento no historico
+            if (ptree_history_size_by_id(pt, id) < 1) {
+                message_and_clear("Alta proibida: historico vazio. Registre ao menos um procedimento.", MSG_WAIT_SHORT);
+                continue;
+            }
+
+            // Registrar alta no historico e resetar flag 'called'
             {
                 char item[PROC_MAX_LEN + 1];
                 char timestr[32] = {0};
+
                 (void)format_timestamp(timestr, sizeof(timestr));
+
                 if (timestr[0] != '\0')
                     snprintf(item, sizeof(item), "[%s] Alta concedida", timestr);
-                else
-                    strncpy(item, "Alta concedida", sizeof(item) - 1), item[sizeof(item) - 1] = '\0';
 
-                /* tentar registrar a alta no histórico; ignorar erro se cheio */
+                else { // tenta registrar alta no histórico e ignora erro se cheio
+                    strncpy(item, "Alta concedida", sizeof(item) - 1);
+                    item[sizeof(item) - 1] = '\0';
+                }
+
                 (void)ptree_history_push(pt, id, item);
             }
 
@@ -767,7 +811,9 @@ int main(){
             (void)ptree_set_discharged(pt, id, true); /* marcar alta persistente */
             message_and_clear("Alta concedida. Registro mantido. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
-        } else if (opc == 8) {
+        } 
+        
+        else if (opc == 8) {
             /* Sair: salvar e terminar 
                Agora gravamos diretamente a partir da árvore.
                Comentário comparativo (antigo): salvar via PatientList era:
