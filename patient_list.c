@@ -68,16 +68,22 @@ struct PlHashEntry {
 static unsigned long str_hash(const char *str) {
     unsigned long hash = 5381;
     int c;
+    
     while ((c = (unsigned char)*str++))
         hash = ((hash << 5) + hash) + c;
+
     return hash;
 }
 
 /* inicializa a tabela hash interna (vazia) com 'buckets' baldes */
 static int plist_htable_init(PatientList *pl, size_t buckets) {
     pl->htable = (struct PlHashEntry **)calloc(buckets, sizeof(struct PlHashEntry *));
-    if (!pl->htable) return -1;
+
+    if (!pl->htable) 
+        return -1;
+
     pl->hcap = buckets;
+    
     return 0;
 }
 

@@ -3,17 +3,20 @@
 #include "priority_queue.h"
 #include "util.h"
 
+// Representa um item na fila de prioridade: id, prioridade e sequência de chegada (para desempate).
 struct PQNode {
     char id[MAX_ID_LEN + 1];
     int priority;
     unsigned long seq;
 };
 
+// Entrada da tabela hash usada para membership O(1) por encadeamento separado.
 struct QHashEntry {
     char *key;
     struct QHashEntry *next;
 };
 
+// Estrutura principal da fila de prioridade: heap binário + conjunto de membros para consulta rápida.
 struct PriorityQueue {
     struct PQNode *nodes;
     int size;
@@ -23,22 +26,29 @@ struct PriorityQueue {
     size_t mcap;
 };
 
-/* djb2 */
+/* djb2: função de hash para strings usada pelo membership-set */
 static unsigned long h_str(const char *s) {
     unsigned long h = 5381;
     int c;
+
     while ((c = (unsigned char)*s++))
         h = ((h << 5) + h) + c;
+
     return h;
 }
 
+/* Inicializa tabela hash de membros (buckets alocados dinamicamente) */
 static int h_init(struct PriorityQueue *pq, size_t buckets) {
     pq->members = (struct QHashEntry**)calloc(buckets, sizeof(struct QHashEntry*));
-    if (!pq->members) return -1;
+
+    if (!pq->members)
+        return -1;
+
     pq->mcap = buckets;
     return 0;
 }
 
+/* Adiciona um id ao conjunto de membros, evitando duplicatas */
 static void h_add(struct PriorityQueue *pq, const char *id) {
     if (!pq || !pq->members || !id) return;
 
@@ -51,9 +61,12 @@ static void h_add(struct PriorityQueue *pq, const char *id) {
     }
 
     e = (struct QHashEntry*)malloc(sizeof(*e));
-    if (!e) return;
+
+    if (!e) 
+        return;
 
     e->key = util_strdup(id);
+
     if (!e->key) {
         free(e);
         return;
@@ -63,6 +76,7 @@ static void h_add(struct PriorityQueue *pq, const char *id) {
     pq->members[b] = e;
 }
 
+/* Remove um id do conjunto de membros */
 static void h_remove(struct PriorityQueue *pq, const char *id) {
     if (!pq || !pq->members || !id) return;
 
@@ -73,14 +87,18 @@ static void h_remove(struct PriorityQueue *pq, const char *id) {
         if (strcmp((*pe)->key, id) == 0) {
             struct QHashEntry *r = *pe;
             *pe = r->next;
+
             free(r->key);
             free(r);
+
             return;
         }
+
         pe = &((*pe)->next);
     }
 }
 
+/* Verifica se um id está presente no conjunto de membros (1/0) */
 static int h_contains(const struct PriorityQueue *pq, const char *id) {
     if (!pq || !pq->members || !id) return 0;
 
@@ -88,53 +106,70 @@ static int h_contains(const struct PriorityQueue *pq, const char *id) {
     struct QHashEntry *e = pq->members[b];
 
     while (e) {
-        if (strcmp(e->key, id) == 0) return 1;
+
+        if (strcmp(e->key, id) == 0) 
+            return 1;
+
         e = e->next;
     }
+
     return 0;
 }
 
+/* Libera toda a memória da tabela hash de membros */
 static void h_free(struct PriorityQueue *pq) {
     if (!pq || !pq->members) return;
 
     for (size_t i = 0; i < pq->mcap; ++i) {
         struct QHashEntry *e = pq->members[i];
+
         while (e) {
             struct QHashEntry *n = e->next;
+
             free(e->key);
             free(e);
+
             e = n;
         }
     }
 
     free(pq->members);
+    
     pq->members = NULL;
     pq->mcap = 0;
 }
 
-/* heap ordering: menor priority primeiro; desempate menor seq */
+/* Critério de ordenação do heap: menor prioridade primeiro; em empate, menor seq (mais antigo) */
 static int better(const struct PQNode *a, const struct PQNode *b) {
     if (a->priority != b->priority)
         return a->priority < b->priority;
+
     return a->seq < b->seq;
 }
 
+/* Troca dois nós do heap (utilitário) */
 static void swap_nodes(struct PQNode *a, struct PQNode *b) {
     struct PQNode tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
+/* Sobe um nó no heap até restaurar a propriedade de heap (heapify-up) */
 static void heap_up(struct PriorityQueue *pq, int idx) {
     while (idx > 0) {
         int parent = (idx - 1) / 2;
+
         if (better(&pq->nodes[idx], &pq->nodes[parent])) {
             swap_nodes(&pq->nodes[idx], &pq->nodes[parent]);
             idx = parent;
-        } else break;
+        } 
+        
+        else 
+            break;
     }
 }
 
+/* Desce um nó no heap até restaurar a propriedade de heap (heapify-down) */
 static void heap_down(struct PriorityQueue *pq, int idx) {
     for (;;) {
         int l = idx * 2 + 1;
@@ -143,6 +178,7 @@ static void heap_down(struct PriorityQueue *pq, int idx) {
 
         if (l < pq->size && better(&pq->nodes[l], &pq->nodes[best]))
             best = l;
+            
         if (r < pq->size && better(&pq->nodes[r], &pq->nodes[best]))
             best = r;
 
@@ -153,6 +189,7 @@ static void heap_down(struct PriorityQueue *pq, int idx) {
     }
 }
 
+/* Cria a fila de prioridade com capacidade fixa; inicializa heap e conjunto de membros */
 PriorityQueue *pqueue_create(int cap) {
     if (cap <= 0 || cap > WAIT_CAP) return NULL;
 
@@ -180,6 +217,7 @@ PriorityQueue *pqueue_create(int cap) {
     return pq;
 }
 
+/* Destroi a fila: libera heap e tabela de membros */
 void pqueue_destroy(PriorityQueue *pq) {
     if (!pq) return;
     h_free(pq);
@@ -187,23 +225,34 @@ void pqueue_destroy(PriorityQueue *pq) {
     free(pq);
 }
 
+/* Predicado: retorna 1 se a fila está cheia, 0 caso contrário */
 int pqueue_is_full(const PriorityQueue *pq) {
     return (pq && pq->size >= pq->cap) ? 1 : 0;
 }
 
+/* Consulta de membership: 1 se contém, 0 caso contrário (via hash) */
 int pqueue_contains(const PriorityQueue *pq, const char *id) {
     return h_contains(pq, id);
 }
 
+/* Retorna o número de elementos atualmente na fila */
 int pqueue_size(const PriorityQueue *pq) {
     return pq ? pq->size : 0;
 }
 
+/* Enfileira um id com prioridade: valida entradas, insere no heap e atualiza conjunto de membros */
 int pqueue_enqueue(PriorityQueue *pq, const char *id, int priority) {
-    if (!pq || !id) return -1;
-    if (priority < 1 || priority > 5) return -1;
-    if (pqueue_is_full(pq)) return -1;
-    if (h_contains(pq, id)) return -1;
+    if (!pq || !id) 
+        return -1;
+
+    if (priority < 1 || priority > 5) 
+        return -1;
+    
+    if (pqueue_is_full(pq)) 
+        return -1;
+    
+    if (h_contains(pq, id)) 
+        return -1;
 
     int idx = pq->size++;
     strncpy(pq->nodes[idx].id, id, MAX_ID_LEN);
@@ -217,9 +266,13 @@ int pqueue_enqueue(PriorityQueue *pq, const char *id, int priority) {
     return 0;
 }
 
+/* Remove o elemento de maior prioridade (menor valor) e copia seu id para out */
 int pqueue_dequeue(PriorityQueue *pq, char *out, size_t out_size) {
-    if (!pq || !out || out_size == 0) return -1;
-    if (pq->size == 0) return -1;
+    if (!pq || !out || out_size == 0) 
+        return -1;
+    
+    if (pq->size == 0) 
+        return -1;
 
     strncpy(out, pq->nodes[0].id, out_size - 1);
     out[out_size - 1] = '\0';
@@ -248,14 +301,20 @@ static int build_sorted(const PriorityQueue *pq, struct PQNode *buf, int n) {
             buf[j + 1] = buf[j];
             --j;
         }
+
         buf[j + 1] = key;
     }
+
     return 0;
 }
 
+/* Obtém o id pelo índice lógico na ordenação por prioridade (não altera o heap) */
 int pqueue_get_id_by_index(const PriorityQueue *pq, int index, char *out, size_t out_size) {
-    if (!pq || !out || out_size == 0) return -1;
-    if (index < 0 || index >= pq->size) return -1;
+    if (!pq || !out || out_size == 0) 
+        return -1;
+
+    if (index < 0 || index >= pq->size) 
+        return -1;
 
     struct PQNode tmp[WAIT_CAP];
     build_sorted(pq, tmp, pq->size);
@@ -266,9 +325,13 @@ int pqueue_get_id_by_index(const PriorityQueue *pq, int index, char *out, size_t
     return 0;
 }
 
+/* Obtém a prioridade pelo índice lógico na ordenação por prioridade (não altera o heap) */
 int pqueue_get_priority_by_index(const PriorityQueue *pq, int index, int *out_priority) {
-    if (!pq || !out_priority) return -1;
-    if (index < 0 || index >= pq->size) return -1;
+    if (!pq || !out_priority) 
+        return -1;
+
+    if (index < 0 || index >= pq->size) 
+        return -1;
 
     struct PQNode tmp[WAIT_CAP];
     build_sorted(pq, tmp, pq->size);

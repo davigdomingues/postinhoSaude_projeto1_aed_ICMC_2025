@@ -10,31 +10,47 @@
 #include <windows.h>
 #endif
 
+// Flag interna usada por read_line para indicar se a última leitura foi truncada.
 static int last_truncated = 0;
 
 /* Comprimento de string limitado compatível com C99 (substitui strnlen) */
 size_t util_strnlen(const char *s, size_t maxlen) {
-    if (!s) return 0;
+    if (!s) 
+        return 0;
+
     size_t i = 0;
-    while (i < maxlen && s[i] != '\0') ++i;
+
+    while (i < maxlen && s[i] != '\0') 
+        ++i;
+        
     return i;
 }
 
 /* Duplicador de string compatível com C99 (substitui strdup) */
 char *util_strdup(const char *s) {
-    if (!s) return NULL;
+    if (!s) 
+        return NULL;
+
     size_t len = strlen(s) + 1;
     char *p = (char *)malloc(len);
-    if (!p) return NULL;
+
+    if (!p) 
+        return NULL;
+
     memcpy(p, s, len);
     return p;
 }
 
 /* Helper C99: obtém hora local em 'out' usando apenas localtime (copia segura) */
 static int util_localtime(const time_t *t, struct tm *out) {
-    if (!t || !out) return -1;
+    if (!t || !out) 
+        return -1;
+    
     struct tm *tmp = localtime(t);
-    if (!tmp) return -1;
+
+    if (!tmp) 
+        return -1;
+    
     *out = *tmp; /* copia para buffer do chamador */
     return 0;
 }
@@ -66,15 +82,17 @@ void read_line(char *buf, size_t size) {
     if (strchr(buf, '\n') == NULL) {
         /* A entrada pode ter sido truncada; descartar o restante da linha do stdin */
         int c;
+
         while ((c = getchar()) != EOF && c != '\n') { /* consume */ }
+
         last_truncated = 1;
     }
 
     /* remover terminadores de linha CR/LF do final (se houver) */
     size_t len = strlen(buf);
-    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r'))
         buf[--len] = '\0';
-    }
+
 }
 
 /* Retorna 1 se ultima chamada a read_line resultou em truncamento da entrada
@@ -83,7 +101,7 @@ int read_line_truncated(void) {
     return last_truncated;
 }
 
-/* Formata timestamp local em out no formato "YYYY-MM-DD HH:MM".
+/* format_timestamp: formata timestamp local "YYYY-MM-DD HH:MM" usando strftime
    Retorna 0 em sucesso, -1 em erro.
 
    Detalhes:
@@ -93,38 +111,61 @@ int read_line_truncated(void) {
    - Valores de retorno permitem ao chamador saber se a funcao falhou (ex.: errno/time(NULL) invalido).
 */
 int format_timestamp(char *out, size_t out_size) {
-    if (!out || out_size == 0) return -1;
+    if (!out || out_size == 0) 
+        return -1;
+
     out[0] = '\0';
 
     time_t t = time(NULL);
-    if (t == (time_t)-1) return -1;
+    if (t == (time_t)-1) 
+        return -1;
 
     struct tm tmbuf;
-    if (util_localtime(&t, &tmbuf) != 0) return -1;
-    if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) return -1;
+
+    if (util_localtime(&t, &tmbuf) != 0) 
+        return -1;
+
+    if (strftime(out, out_size, "%Y-%m-%d %H:%M", &tmbuf) == 0) 
+        return -1;
+
     return 0;
 }
 
 /* Imprime diretamente uma string UTF-8 de forma segura no Windows (WriteConsoleW)
    ou via fputs em plataformas POSIX. */
 void print_utf8(const char *s) {
-    if (!s) return;
+    if (!s) 
+        return;
+
 #if defined(_WIN32)
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+
     if (h == INVALID_HANDLE_VALUE) {
         fputs(s, stdout);
         return;
     }
+
     /* converte UTF-8 para UTF-16 */
     int wlen = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
-    if (wlen <= 0) { fputs(s, stdout); return; }
+
+    if (wlen <= 0) { 
+        fputs(s, stdout); 
+        return; 
+    }
+
     wchar_t *wbuf = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
-    if (!wbuf) { fputs(s, stdout); return; }
+
+    if (!wbuf) { 
+        fputs(s, stdout); 
+        return; 
+    }
+
     if (MultiByteToWideChar(CP_UTF8, 0, s, -1, wbuf, wlen) == 0) {
         free(wbuf);
         fputs(s, stdout);
         return;
     }
+
     DWORD written = 0;
     WriteConsoleW(h, wbuf, wlen - 1, &written, NULL); /* wlen includes terminator */
     free(wbuf);
@@ -135,34 +176,49 @@ void print_utf8(const char *s) {
 
 /* printf que aceita formato e argumentos, produz UTF-8 corretamente no Windows */
 int util_printf(const char *fmt, ...) {
-    if (!fmt) return 0;
+    if (!fmt) 
+        return 0;
+
     int ret = 0;
+
     va_list ap;
     va_start(ap, fmt);
     /* formata em buffer temporário */
     char buf[1024];
     int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+
     if (n < 0) {
         /* tentativa com alocação se necessário */
         va_end(ap);
         va_start(ap, fmt);
+
         int needed = vsnprintf(NULL, 0, fmt, ap);
         va_end(ap);
-        if (needed <= 0) return 0;
+
+        if (needed <= 0) 
+            return 0;
+
         char *dyn = (char *)malloc((size_t)needed + 1);
-        if (!dyn) return 0;
+
+        if (!dyn) 
+            return 0;
+
         va_start(ap, fmt);
         vsnprintf(dyn, (size_t)needed + 1, fmt, ap);
         print_utf8(dyn);
+
         ret = needed;
         free(dyn);
         va_end(ap);
+
         return ret;
     }
+
     /* n é número de bytes que seriam escritos; buf possui a string truncada ou completa */
     print_utf8(buf);
     va_end(ap);
     ret = n;
+
     return ret;
 }
 

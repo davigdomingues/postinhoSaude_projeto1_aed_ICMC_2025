@@ -3,3 +3,11 @@ Resumo da verificação C99 (padrão desejado pelo projeto da disciplina)
 
 Passo para verificar localmente:
   gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
+
+Notas:
+- O Makefile padrão está configurado para C11 (-std=c11). Para validar C99, use o comando acima diretamente.
+- Caso surjam avisos de “implicit declaration” ou “non-portable”, ajuste includes (ex.: <stdbool.h>, <stddef.h>) e revisite assinaturas.
+- Dicas de diagnóstico:
+  - Use também: gcc -std=c99 -pedantic-errors -Wall -Wextra -I. -c *.c
+  - Em Windows/MinGW, se houver conflito de cabeçalhos do sistema, valide individualmente: gcc -std=c99 -pedantic -Wall -Wextra -I. -c util.c
+- Objetivo: garantir que o código compila limpo em C99 com pedantic, sem dependências de extensões pós‑C99.
