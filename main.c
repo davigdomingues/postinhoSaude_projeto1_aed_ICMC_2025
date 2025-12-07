@@ -18,7 +18,7 @@ Inclusões e módulos:
 
 Estruturas usadas em runtime (alocadas dinamicamente):
 - PatientTree *pt;  // ponteiro para a árvore de pacientes alocada por ptree_create()
-- PriorityQueue *q;         // ponteiro para a fila de espera alocada por queue_create()
+- PriorityQueue *q;         // ponteiro para a fila de espera alocada por pqueue_create()
 - clear_screen.h: utilidades de UI (limpar tela, mensagens temporizadas).
 
 Fluxo principal (main):
@@ -54,7 +54,7 @@ Fluxo principal (main):
         - Usa ptree_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
 
      6) Mostrar fila:
-        - lista a fila resolvendo nomes via PatientList (sem usar função de impressão do TAD).
+        - lista a fila resolvendo nomes via PatientTree (sem usar função de impressão do TAD).
         - Se a fila estiver vazia, avisa o usuário.
 
      7) Mostrar histórico:
@@ -74,7 +74,7 @@ Limpeza:
 - Antes de terminar, a aplicação chama pqueue_destroy(q) e ptree_destroy(pt) para libertar recursos dinâmicos alocados pelos módulos.
 
 Observações de integração:
-- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_list, queue, history, io, util).
+- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_tree, priority_queue, history, io, util).
 - Persistência: main.c chama io_load(DATA_FILE, ...) no arranque e io_save(DATA_FILE, ...) ao sair.
   * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
   * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
@@ -151,9 +151,9 @@ static void show_menu(void) {
 }
 
 /* Mostra informações carregadas do ficheiro de dados:
-   - lista de pacientes (resumo)
+   - árvore de pacientes (resumo)
    - históricos por paciente
-   - fila de espera com nomes resolvidos via PatientList
+   - fila de espera com nomes resolvidos via PatientTree
    Em caso de erro no carregamento, informa o usuário e inicializa vazio */
 static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
@@ -216,10 +216,10 @@ static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
 }
 
 /* Funcao principal do programa simplificada:
-   - inicializa estruturas (PatientList, Queue)
+   - inicializa estruturas (PatientTree, PriorityQueue)
    - tenta carregar dados persistidos (io_load)
    - executa loop de menu interpretando as opcoes 1..7
-   - delega operacoes aos modulos (ptree_*, queue_*, history_*, io_*)
+   - delega operacoes aos modulos (ptree_*, pqueue_*, history_*, io_*)
    - salva condicionalmente e libera recursos antes de terminar
 */
 
