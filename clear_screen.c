@@ -10,6 +10,7 @@
 #include "clear_screen.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "util.h" /* util_printf para UTF-8 confiável */
 #ifdef _WIN32
 // Windows API -> Sleep()
 #include <windows.h>
@@ -38,7 +39,7 @@ void clear_screen(void) {
 */
 void message_and_clear(const char *message, unsigned int milliseconds) {
     if (message && message[0] != '\0')
-        printf("%s\n", message);
+        util_printf("%s\n", message);
 
     /* Garante que a saída foi enviada ao terminal antes de dormir */
     fflush(stdout);

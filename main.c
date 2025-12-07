@@ -109,17 +109,17 @@ Observações de integração:
 static void show_patient_and_history_cb(const char *id, const char *name, bool called, void *ud) {
     (void)called;
     PatientTree *pt = (PatientTree*)ud;
-    printf(" - %s: %s\n", id, name);
+    util_printf(" - %s: %s\n", id, name);
 
     int hsz = ptree_history_size_by_id(pt, id);
     if (hsz > 0) {
-        util_printf("\nHistorico de %s (ID %s): %d item(ns)\n", name, id, hsz);
+        util_printf("\nHistórico de %s (ID %s): %d item(ns)\n", name, id, hsz);
 
         for (int hi = 0; hi < hsz; ++hi) {
             char hline[PROC_MAX_LEN + 1];
 
             if (ptree_history_get_by_id(pt, id, hi, hline, sizeof(hline)) == 0)
-                util_printf("  %d) %s\n", hi + 1, hline);
+                util_printf("  %d) %s\n", hi + 1, hline);
         }
 
         util_printf("\n");
@@ -130,7 +130,7 @@ static void show_patient_and_history_cb(const char *id, const char *name, bool c
 static void list_cb(const char *id, const char *name, bool called, void *ud) {
     PatientTree *pt = (PatientTree*)ud;
     int pri = ptree_get_priority(pt, id);
-    util_printf("- ID: %s | Nome: %s | Chamado: %s | Prioridade: P%d\n", id, name, called ? "SIM" : "NAO", pri);
+    util_printf("- ID: %s | Nome: %s | Chamado: %s | Prioridade: P%d\n", id, name, called ? "SIM" : "NÃO", pri);
 }
 
 /* Helpers locais para melhorar legibilidade */
@@ -138,16 +138,16 @@ static void list_cb(const char *id, const char *name, bool called, void *ud) {
 /* Imprime o menu principal no terminal (sem lógica de leitura)
    Esta função só apresenta as opções disponíveis para o usuário */
 static void show_menu(void) {
-    printf("\nMenu:\n");
-    printf("1. Registrar paciente\n");
-    printf("2. Remover paciente\n");
-    printf("3. Listar pacientes\n");
-    printf("4. Buscar paciente por ID\n");
-    printf("5. Chamar proximo paciente (por prioridade)\n");
-    printf("6. Mostrar fila de espera\n");
-    printf("7. Dar alta ao paciente\n");
-    printf("8. Sair\n");
-    printf("Escolha: ");
+    util_printf("\nMenu:\n");
+    util_printf("1. Registrar paciente\n");
+    util_printf("2. Remover paciente\n");
+    util_printf("3. Listar pacientes\n");
+    util_printf("4. Buscar paciente por ID\n");
+    util_printf("5. Chamar próximo paciente (por prioridade)\n");
+    util_printf("6. Mostrar fila de espera\n");
+    util_printf("7. Dar alta ao paciente\n");
+    util_printf("8. Sair\n");
+    util_printf("Escolha: ");
 }
 
 /* Mostra informações carregadas do ficheiro de dados:
@@ -158,14 +158,14 @@ static void show_menu(void) {
 static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
     if (load_r == 0) {
-        /* Mostra resumidamente o estado carregado para o utilizador antes de limpar */
-        printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
+        /* Mostra resumidamente o estado carregado para o utilizador antes de limpar, mostra resumidamente o estado carregado para o utilizador antes de limpar */
+        util_printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
 
         /* imprime cada paciente (em ordem) e seus historicos via callback */
         ptree_inorder(pt, show_patient_and_history_cb, pt);
 
         if (pqueue_size(q) > 0) {
-            printf("Fila de espera:\n");
+            util_printf("Fila de espera:\n");
             int qsz = pqueue_size(q);
 
             for (int qi = 0; qi < qsz; ++qi) {
@@ -185,34 +185,34 @@ static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
         } 
         
         else
-            printf("\nFila de espera vazia.\n");
+            util_printf("\nFila de espera vazia.\n");
 
         /* Em vez de limpar automaticamente, aguarda que o utilizador pressione Enter
            para garantir que as impressões permaneçam visíveis. */
 
         {
             char __tmp_wait[8];
-            printf("\nPressione Enter para continuar...");
+            util_printf("\nPressione Enter para continuar...");
             fflush(stdout);
             read_line(__tmp_wait, sizeof(__tmp_wait));
             clear_screen();
         }
-    }
+    } 
     
     else if (load_r == -1) {
         /* arquivo inexistente: inicialização com estruturas vazias (normal em primeira execução) */
-        printf("Nenhum arquivo de dados encontrado.\n");
+        util_printf("Nenhum arquivo de dados encontrado.\n");
         message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
 
     } 
     
     else {
-        printf("Erro ao carregar dados (formato/IO).\n");
+        /* erro ao carregar dados (formato/IO) */
         message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
     }
 
     /* Mensagem de boas-vindas simples (sem limpar novamente de forma imediata) */
-    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestao (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
+    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
 /* Funcao principal do programa simplificada:
@@ -343,16 +343,88 @@ int main(){
                             char pbuf[16];
                             read_line(pbuf, sizeof(pbuf));
                             pri = atoi(pbuf);
+                            
                             if (pri >= 1 && pri <= 5)
                                 break;
 
                             message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
                         }
 
+                        /* coleta da razão de urgência para prioridades 1..3 e registrar no histórico */
+                        char item[PROC_MAX_LEN + 1];
+                        if (pri >= 1 && pri <= 3) {
+                            for (;;) {
+                                if (ptree_history_is_full(pt, id)) {
+                                    message_and_clear("Historico cheio. Retornando ao submenu...", MSG_WAIT_SHORT);
+                                    continue;
+                                }
+
+                                /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
+                                char proc[PROC_MAX_LEN + 1];
+                                util_printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN); /* util_printf para acentos */
+                                read_line(proc, sizeof(proc));
+
+                                if (read_line_truncated()) {
+                                    message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
+                                    continue;
+                                }
+
+                                if (proc[0] == '\0') {
+                                    message_and_clear("Descricao vazia. Tente novamente.", MSG_WAIT_SHORT);
+                                    continue;
+                                }
+
+                                /* obtêm timestamp formatado (se disponível)*/
+                                char timestr[32] = {0};
+
+                                if (format_timestamp(timestr, sizeof(timestr)) != 0)
+                                    timestr[0] = '\0';
+
+                                /* monta item com timestamp seguro e truncado para PROC_MAX_LEN */
+                                item[0] = '\0';
+
+                                if (timestr[0] != '\0') {
+                                    /* escreve somente o prefixo "[timestr]" e depois concatena o proc
+                                    limitando a cópia ao espaço restante, para evitar warnings do compilador */
+                                    int pref = snprintf(item, sizeof(item), "[%s] ", timestr);
+
+                                    if (pref < 0) 
+                                        pref = 0;
+
+                                    size_t used = (size_t)pref;
+
+                                    if (used >= sizeof(item))
+                                        /* já cheio, garante terminação */
+                                        item[sizeof(item) - 1] = '\0';
+                                    
+                                    else {
+                                        size_t avail = sizeof(item) - used - 1; // espaço restante para chars + '\0
+                                        strncat(item, proc, avail);
+                                        // strncat usa o espaço disponível, garantindo terminação
+                                    }
+                                } 
+                                
+                                else {
+                                    // sem timestamp: copia procedure com segurança
+                                    strncpy(item, proc, sizeof(item) - 1);
+                                    item[sizeof(item) - 1] = '\0';
+                                }
+
+                                break;
+                            }
+                        }
+
                         if (pqueue_enqueue(q, id, pri) == 0) {
                             (void)ptree_set_called(pt, id, false);
                             (void)ptree_set_priority(pt, id, pri);
-                            (void)ptree_set_discharged(pt, id, false); /* reset alta ao reinserir na fila */
+                            (void)ptree_set_discharged(pt, id, false); /* reset alta ao reinserir */
+
+                            if (pri >= 1 && pri <= 3) {
+                                if (ptree_history_push(pt, id, item) == 0)
+                                    util_printf("Procedimento adicionado.\n");
+                                else
+                                    util_printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
+                            }
 
                             message_and_clear("Paciente reinserido na fila apos alta.", MSG_WAIT_SHORT);
                             reinInserted = 1; // ja reinserido, pular cadasatro
@@ -402,20 +474,18 @@ int main(){
             int r = ptree_insert(pt, id, name); /* agora usa árvore */
 
             if (r == 0)
-                printf("Paciente cadastrado.\n");
+                util_printf("Paciente cadastrado.\n");
 
             else {
-                printf("Falha ao cadastrar.\n");
+                util_printf("Falha ao cadastrar.\n");
                 message_and_clear("Falha ao cadastrar. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
 
             if (pqueue_is_full(q))
-                printf("Fila cheia. Nao foi possivel inserir.\n");
-
+                util_printf("Fila cheia. Não foi possível inserir.\n");
             else if (pqueue_contains(q, id))
-                printf("Paciente ja esta na fila de espera.\n");
-                
+                util_printf("Paciente já está na fila de espera.\n");
             else {
                 int pri;
 
@@ -430,9 +500,77 @@ int main(){
                     message_and_clear("Prioridade invalida.", MSG_WAIT_SHORT);
                 }
 
+                char item[PROC_MAX_LEN + 1];
+
+                if(pri>=1 && pri<=3) {
+                    for(;;) {
+                            /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
+                            char proc[PROC_MAX_LEN + 1];
+                            util_printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN); /* util_printf para acentos */
+                            read_line(proc, sizeof(proc));
+
+                            if (read_line_truncated()) {
+                                message_and_clear("Descricao muito longa. Tente novamente.", MSG_WAIT_SHORT);
+                                continue;
+                            }
+
+                            if (proc[0] == '\0') {
+                                message_and_clear("Descricao vazia. Tente novamente.", MSG_WAIT_SHORT);
+                                continue;
+                            }
+
+                            /* obtêm timestamp formatado (se disponível)*/
+                            char timestr[32] = {0};
+
+                            if (format_timestamp(timestr, sizeof(timestr)) != 0)
+                                timestr[0] = '\0';
+
+                            /* monta item com timestamp seguro e truncado para PROC_MAX_LEN */
+                            item[0] = '\0';
+
+                            if (timestr[0] != '\0') {
+                                /* escreve somente o prefixo "[timestr]" e depois concatena o proc
+                                limitando a cópia ao espaço restante, para evitar warnings do compilador */
+                                int pref = snprintf(item, sizeof(item), "[%s] ", timestr);
+
+                                if (pref < 0) 
+                                    pref = 0;
+
+                                size_t used = (size_t)pref;
+
+                                if (used >= sizeof(item))
+                                    /* já cheio, garante terminação */
+                                    item[sizeof(item) - 1] = '\0';
+                                
+                                else {
+                                    size_t avail = sizeof(item) - used - 1; // espaço restante para chars + '\0
+                                    strncat(item, proc, avail);
+                                    // strncat usa o espaço disponível, garantindo terminação
+                                }
+
+                            } 
+                            
+                            else {
+                                // sem timestamp: copia procedure com segurança
+                                strncpy(item, proc, sizeof(item) - 1);
+                                item[sizeof(item) - 1] = '\0';
+                            }
+
+                            break;
+                    }
+                }
+
                 pqueue_enqueue(q, id, pri);
                 (void)ptree_set_priority(pt, id, pri);
-                printf("Paciente inserido na fila.\n");
+                if(pri>=1 && pri<=3) {
+                    if (ptree_history_push(pt, id, item) == 0)
+                        util_printf("Procedimento adicionado.\n");
+
+                    else
+                        util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
+                }
+
+                util_printf("Paciente inserido na fila.\n");
             }
 
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_SHORT);
@@ -441,7 +579,8 @@ int main(){
         
         else if (opc == 2) { // Remover paciente. Para o trabalho, foi escolhido um cenário ideal em que o paciente só morreria, caso não estivesse na fila.
             char id[MAX_ID_LEN + 1];
-            printf("ID do paciente a remover (obito): "); read_line(id, sizeof(id));
+            util_printf("ID do paciente a remover (óbito): ");
+            read_line(id, sizeof(id));
 
             /* trim de espaços (evita falha por espaços acidentais) */
             {
@@ -476,7 +615,7 @@ int main(){
 
             /* checar se está na fila */
             if (pqueue_contains(q, id)) {
-                printf("Obito proibido.\n");
+                util_printf("Obito proibido.\n");
                 message_and_clear("Paciente ainda esta na fila. Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
@@ -502,7 +641,7 @@ int main(){
                 message_and_clear("Obito registrado e dados removidos (LGPD). Retornando ao menu...", MSG_WAIT_MEDIUM);
 
             else {
-                util_printf("Falha ao remover registro do paciente. codigo=%d\n", rem_rc);
+                util_printf("Falha ao remover registro do paciente. código = %d\n", rem_rc);
                 message_and_clear("Falha ao remover registro do paciente. Retornando ao menu...", MSG_WAIT_MEDIUM);
             }
 
@@ -516,8 +655,14 @@ int main(){
 
             /* Uso de callback C puro */
             ptree_inorder(pt, list_cb, pt);
-            message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
 
+            {
+                char __tmp_wait[8];
+                printf("\nPressione Enter para retornar ao menu");
+                fflush(stdout);
+                read_line(__tmp_wait, sizeof(__tmp_wait));
+                clear_screen();
+            }
         } 
         
         else if (opc == 4) { // Buscar paciente por ID
@@ -584,7 +729,7 @@ int main(){
 
                     /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
                     char proc[PROC_MAX_LEN + 1];
-                    printf("Procedimento (ate %d chars): ", PROC_MAX_LEN);
+                    printf("Procedimento (ate %d chars): ", PROC_MAX_LEN); /* prompt pode ficar em printf ASCII */
                     read_line(proc, sizeof(proc));
 
                     if (read_line_truncated()) {
@@ -637,10 +782,10 @@ int main(){
 
                     // Original (lista): plist_history_push(pl, id, item)
                     if (ptree_history_push(pt, id, item) == 0)
-                        printf("Procedimento adicionado.\n");
+                        util_printf("Procedimento adicionado.\n");
 
                     else
-                        printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
+                        util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
 
                     message_and_clear("Operacao concluida. Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
@@ -650,10 +795,10 @@ int main(){
                     char out[PROC_MAX_LEN + 1];
 
                     if (ptree_history_pop(pt, id, out, sizeof(out)) == 0)
-                        printf("Procedimento desfeito (ultimo): %s\n", out);
-
+                        util_printf("Procedimento desfeito (último): %s\n", out);
+                        
                     else
-                        printf("Nao ha procedimento a desfazer\n");
+                        util_printf("Não há procedimento a desfazer\n");
 
                     message_and_clear("Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
@@ -661,7 +806,7 @@ int main(){
                 
                 else if (sub == 3) { /* Mostrar historico completo */
                     int n = ptree_history_size_by_id(pt, id);
-                    util_printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
+                    util_printf("Histórico de %s (ID %s): %d item(ns)\n", name, id, n);
 
                     for (int i = 0; i < n; ++i) {
                         char item[PROC_MAX_LEN + 1];
@@ -670,8 +815,13 @@ int main(){
                             util_printf("%d) %s\n", i + 1, item);
                     }
                     
-                    message_and_clear("Retornando ao submenu...", MSG_WAIT_MEDIUM);
-
+                    {
+                        char __tmp_wait[8];
+                        printf("\nPressione Enter para retornar ao submenu");
+                        fflush(stdout);
+                        read_line(__tmp_wait, sizeof(__tmp_wait));
+                        clear_screen();
+                    }
                 } 
                 
                 else if (sub == 4) // voltar ao menu principal
@@ -734,7 +884,13 @@ int main(){
                     util_printf("%d: %s - %s (P%d)\n", i + 1, id, name, pri);
                 }
 
-                message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
+                {
+                    char __tmp_wait[8];
+                    printf("\nPressione Enter para retornar ao menu");
+                    fflush(stdout);
+                    read_line(__tmp_wait, sizeof(__tmp_wait));
+                    clear_screen();
+                }
             }
 
         } 
@@ -768,7 +924,7 @@ int main(){
             }
 
             if (!ptree_exists(pt, id)) {
-                printf("Paciente nao encontrado.\n");
+                util_printf("Paciente nao encontrado.\n");
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
                 continue;
             }
@@ -782,14 +938,13 @@ int main(){
                 message_and_clear("Paciente nao foi chamado. Operacao de alta proibida.", MSG_WAIT_SHORT);
                 continue;
             }
-
             // exige pelo menos um procedimento no historico
             if (ptree_history_size_by_id(pt, id) < 1) {
                 message_and_clear("Alta proibida: historico vazio. Registre ao menos um procedimento.", MSG_WAIT_SHORT);
                 continue;
             }
 
-            // Registrar alta no historico e resetar flag 'called'
+            /* Registra alta no historico e atualiza flag 'called' */
             {
                 char item[PROC_MAX_LEN + 1];
                 char timestr[32] = {0};
@@ -825,14 +980,13 @@ int main(){
 
             if (n_pat > 0 || qsize > 0 || load_r == 0) {
                 if (io_save(DATA_FILE, pt, q) == 0)
-                    printf("Dados salvos em %s. Ate breve.\n", DATA_FILE);
-
+                    util_printf("Dados salvos em %s. Até breve.\n", DATA_FILE);
                 else
-                    printf("Erro ao salvar dados.\n");
+                    util_printf("Erro ao salvar dados.\n");
             } 
             
             else
-                printf("Nenhum dado para salvar. Arquivo nao foi alterado.\n");
+                util_printf("Nenhum dado para salvar. Arquivo não foi alterado.\n");
 
             break;
 
