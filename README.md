@@ -283,7 +283,6 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
 
 ## Autores (nome - número USP)
 
-Davi Gabriel Domingues (15447497)
-Caio Cerceau Nanni (16858556)
-Felipe Gausmann Socolowski (16812461)
-<!-- markdownlint-enable MD037 -->
+- Davi Gabriel Domingues (15447497)
+- Caio Cerceau Nanni (16858556)
+- Felipe Gausmann Socolowski (16812461)
