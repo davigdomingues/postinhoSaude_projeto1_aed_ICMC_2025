@@ -45,41 +45,23 @@
  * - io_save usa um ficheiro temporário e rename para reduzir risco de corrupção do ficheiro persistente.
  * - Se precisar de políticas diferentes (por exemplo backups rotativos, compressão ou criptografia),
  *   modifique io_save/io_load e ajuste o formato/documentação aqui.
- */
+ *
+* Observação sobre encoding:
+* - io_load() realiza uma normalização simples das linhas lidas:
+*     - se a linha for válida UTF-8, é usada tal como está;
+*     - se a linha não for UTF-8 válida, io_load assume que está em CP1252
+*       (Windows-1252) e tenta convertê-la para UTF-8 antes de armazenar em memória.
+* - Isso permite compatibilidade com ficheiros de dados antigos gerados em ambientes
+*   Windows que utilizem CP1252. É possível forçar uma conversão externa,
+*   configurando o ficheiro para UTF-8 (ex.: iconv ou PowerShell) antes de executar.
+*/
+
 #ifndef IO_H
 #define IO_H
 #include "patient_tree.h"
 #include "priority_queue.h"
- 
- /*
-  * io_save/io_load formato (texto):
-  * 1) number_of_patients (unsigned long) em sua própria linha
-  * 2) para cada paciente:
-  *    id (linha)
-  *    name (linha)
-  *    n_history (int) (linha)
-  *    entradas do histórico (n_history linhas)
-  *    called_flag (0/1) (linha)
-  *    priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
-  *    g) discharged_flag (0/1) (linha) -- ficheiros antigos podem não ter, assume 0
-  * 3) tamanho da fila (int) (linha)
-  * 4) para cada item da fila:
-  *    id (linha)
-  *    priority (int) (linha) -- se estiver ausente em ficheiros antigos, assume 5 (menor prioridade)
-  */
- 
- /*
-  * Observação sobre encoding:
-  * - io_load() realiza uma normalização simples das linhas lidas:
-  *     * se a linha for válida UTF-8, é usada tal como está;
-  *     * se a linha não for UTF-8 válida, io_load assume que está em CP1252
-  *       (Windows-1252) e tenta convertê-la para UTF-8 antes de armazenar em memória.
-  * - Isto permite compatibilidade com ficheiros de dados antigos gerados em ambientes
-  *   Windows que utilizem CP1252. É possível forçar uma conversão externa,
-  *   configurando o ficheiro para UTF-8 (ex.: iconv ou PowerShell) antes de executar.
-  */
- 
+
 int io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq); // 0 ok, -1 erro
 int io_load(const char *path, PatientTree *pt, PriorityQueue *pq); // 0 ok, -1 sem arquivo, -2 erro
  
- #endif
+#endif
