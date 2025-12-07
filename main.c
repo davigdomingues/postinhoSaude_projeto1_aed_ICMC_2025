@@ -49,11 +49,12 @@ Fluxo principal (main):
         - Submenu disponível apenas se foi chamado; permite adicionar/desfazer e ver histórico completo.
 
      5) Chamar próximo por prioridade:
-        - pqueue_dequeue(q, id) obtém o próximo.
+       - pqueue_dequeue(&pq, id, sizeof(id)) remove o próximo da fila e coloca o ID em 'id'.
         - Marca chamado (ptree_set_called(pt, id, true)) e informa nome.
+        - Usa ptree_get para tentar recuperar o nome do paciente (pode ser NULL se o cadastro não existir).
 
      6) Mostrar fila:
-        - Lista a fila resolvendo nomes pela árvore.
+        - lista a fila resolvendo nomes via PatientTree (sem usar função de impressão do TAD).
         - Se a fila estiver vazia, avisa o usuário.
 
      7) Dar alta:
@@ -73,6 +74,7 @@ Convenções e I/O:
 - Mensagens informativas são exibidas via util_printf() ao usuário, em cada caminho de execução.
 
 Limpeza:
+<<<<<<< HEAD
 - pqueue_destroy(q) e ptree_destroy(pt) liberam recursos dinâmicos.
 
 Persistência:
@@ -80,7 +82,8 @@ Persistência:
 - io_save grava pacientes (id, nome, histórico, chamado, prioridade, discharged), e a fila (id + prioridade).
 
 Observações de integração:
-- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (history, io, util, entre outros).
+- A maior parte da lógica "pesada" (pesquisa, memória, histórico) está em módulos separados (patient_tree, priority_queue, history, io, util, entre outros).
+
 - Persistência: main.c chama io_load(DATA_FILE, ...) no arranque e io_save(DATA_FILE, ...) ao sair.
   * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
   * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
@@ -157,9 +160,9 @@ static void show_menu(void) {
 }
 
 /* Mostra informações carregadas do ficheiro de dados:
-   - lista de pacientes (resumo)
+   - árvore de pacientes (resumo)
    - históricos por paciente
-   - fila de espera com nomes resolvidos via PatientList
+   - fila de espera com nomes resolvidos via PatientTree
    Em caso de erro no carregamento, informa o usuário e inicializa vazio */
 static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
@@ -222,10 +225,10 @@ static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
 }
 
 /* Funcao principal do programa simplificada:
-   - inicializa estruturas (PatientList, Queue)
+   - inicializa estruturas (PatientTree, PriorityQueue)
    - tenta carregar dados persistidos (io_load)
    - executa loop de menu interpretando as opcoes 1..7
-   - delega operacoes aos modulos (ptree_*, queue_*, history_*, io_*)
+   - delega operacoes aos modulos (ptree_*, pqueue_*, history_*, io_*)
    - salva condicionalmente e libera recursos antes de terminar
 */
 
