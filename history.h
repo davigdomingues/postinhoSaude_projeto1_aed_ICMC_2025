@@ -9,6 +9,10 @@ Explicação:
     history_size: Verifica o tamanho do histórico.
     history_top: Verifica o último item do histórico;
     history_inspect: Lê o histórico.
+
+    - Usado por PatientTree para associar histórico por paciente.
+    - Operações: push/pop/is_full/is_empty/size/top/get_by_index.
+    - Persistência é feita por io.c via wrappers ptree_history_* (não dentro deste módulo).
 */
 
 #ifndef HISTORY_H
