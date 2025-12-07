@@ -6,11 +6,12 @@
 
 typedef struct PriorityQueue PriorityQueue;
 
-/* Fila de prioridades:
- * - Ordena por prioridade crescente (1 = emergência ... 5 = não urgência), desempate por seq (mais antigo primeiro).
- * - Acesso por índice é feito via snapshot interno ordenado (não altera heap).
- * - io.c persiste itens com seus respectivos níveis de prioridade.
+/* Fila de prioridades (1 = emergência .. 5 = não urgência)
+ * - Desempate por ordem de chegada (seq mais antigo primeiro).
+ * - Acesso por índice retorna snapshot ordenado (não modifica o heap).
+ * - io.c persiste itens da fila com prioridades.
  */
+
 int pqueue_enqueue(PriorityQueue *pq, const char *id, int priority); /* 0 ok */
 int pqueue_dequeue(PriorityQueue *pq, char *out, size_t out_size);   /* 0 ok */
 int pqueue_is_full(const PriorityQueue *pq);
