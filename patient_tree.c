@@ -19,13 +19,20 @@ typedef struct Patient {
     History *hist;   /* histórico de procedimentos (pilha fixa) */
     bool called;     /* flag se foi chamado */
     int  priority;   /* prioridade registrada (1..5) */
+    bool discharged; /* alta concedida */
 } Patient;
 
 /* Nó AVL: contém dados + filhos + altura para balanceamento. */
-struct PatientNode {
+typedef struct PatientNode {
     Patient data;
     struct PatientNode *left, *right;
     int height;
+} PatientNode;
+
+/* TAD opaca PatientTree: definição interna */
+struct PatientTree {
+    PatientNode *root;
+    size_t size;
 };
 
 /* Retorna altura do nó (0 se NULL). */
@@ -94,6 +101,7 @@ static PatientNode *new_node(const char *id, const char *name) {
     n->data.hist = history_create();
     n->data.called = false;
     n->data.priority = 5; // default para antigos registros no arquivo data.bin
+    n->data.discharged = false; // default
     n->left = n->right = NULL;
     n->height = 1;
 
@@ -255,12 +263,12 @@ static PatientNode *find_node(PatientNode *root, const char *id) {
 /* Liberação recursiva pós-ordem (garante destruir históricos). */
 static void destroy_rec(PatientNode *n) {
     if (!n) 
-    return;
+        return;
 
     destroy_rec(n->left);
     destroy_rec(n->right);
 
-    if (n->data.hist) history_destroy(n->data.hist);
+    if (n->data.hist) 
         history_destroy(n->data.hist);
 
     free(n);
@@ -447,4 +455,18 @@ int ptree_get_priority(const PatientTree *t, const char *id) {
     PatientNode *n = find_node((PatientNode *)t->root, id);
     
     return n ? n->data.priority : 5;
+}
+
+/* Alta (discharge): define/consulta */
+int ptree_set_discharged(PatientTree *t, const char *id, bool discharged) {
+    if (!t || !id) return -1;
+    PatientNode *n = find_node(t->root, id);
+    if (!n) return -1;
+    n->data.discharged = discharged;
+    return 0;
+}
+int ptree_is_discharged(const PatientTree *t, const char *id) {
+    if (!t || !id) return 0;
+    PatientNode *n = find_node((PatientNode *)t->root, id);
+    return n && n->data.discharged ? 1 : 0;
 }

@@ -39,4 +39,8 @@ int ptree_history_pop(PatientTree *t, const char *id, char *out, size_t out_size
 int ptree_history_size_by_id(const PatientTree *t, const char *id);
 int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, char *out, size_t out_size);
 
+/* Alta (discharge): flag pública */
+int ptree_set_discharged(PatientTree *t, const char *id, bool discharged);
+int ptree_is_discharged(const PatientTree *t, const char *id);
+
 #endif

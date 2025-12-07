@@ -251,6 +251,17 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
             fseek(f, pos_after_called, SEEK_SET);
 
         (void)ptree_set_priority(pt, id, pri_read);
+
+        /* tentar ler discharged_flag (compatível com ficheiros antigos) */
+        long pos_after_pri = ftell(f);
+        int dflag = 0, maybe_df = 0;
+
+        if (fscanf(f, "%d\n", &maybe_df) == 1 && (maybe_df == 0 || maybe_df == 1))
+            dflag = maybe_df;
+
+        else
+            fseek(f, pos_after_pri, SEEK_SET);
+        (void)ptree_set_discharged(pt, id, dflag ? true : false);
     }
 
     int m = 0;
@@ -460,4 +471,7 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
         pri = 5;
 
     fprintf(wf, "%d\n", pri);
+    
+    int discharged_flag = ptree_is_discharged(c->pt, id) ? 1 : 0;
+    fprintf(wf, "%d\n", discharged_flag);
 }

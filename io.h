@@ -26,6 +26,7 @@
  *    d) entradas do histórico (n_history linhas)
  *    e) called_flag (0/1) (linha) -- se foi chamado (1) ou não (0)
  *    f) priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
+ *    g) discharged_flag (0/1) (linha) -- ficheiros antigos podem não ter, assume 0
  * 3) tamanho da fila (int) (linha) -- número de IDs que seguem
  * 4) para cada item da fila:
  *    id (linha)
@@ -60,6 +61,7 @@
   *    entradas do histórico (n_history linhas)
   *    called_flag (0/1) (linha)
   *    priority (int) (linha) -- em ficheiros antigos pode estar ausente, assume 5 (menor prioridade)
+  *    g) discharged_flag (0/1) (linha) -- ficheiros antigos podem não ter, assume 0
   * 3) tamanho da fila (int) (linha)
   * 4) para cada item da fila:
   *    id (linha)

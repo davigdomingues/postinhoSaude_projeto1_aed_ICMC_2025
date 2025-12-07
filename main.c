@@ -341,6 +341,7 @@ int main(){
                         pqueue_enqueue(q, id, pri);
                         (void)ptree_set_called(pt, id, false);
                         (void)ptree_set_priority(pt, id, pri);
+                        (void)ptree_set_discharged(pt, id, false); /* reset alta ao reinserir na fila */
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
                         reinInserted = 1; /* já reinserido, pular cadastro */
                         break;
@@ -523,7 +524,7 @@ int main(){
                 strncpy(name, "(desconhecido)", sizeof(name));
 
             int called = ptree_is_called(pt, id);
-            util_printf("ID: %s | Nome: %s | Chamado: %s\n", id, name, called ? "SIM" : "NAO");
+            util_printf("Nome: %s | Chamado: %s\n", name, called ? "SIM" : "NAO");
 
             /* menu interno de acoes sobre o paciente */
             for (;;) {
@@ -704,7 +705,7 @@ int main(){
                 message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
             }
 
-        } else if (opc == 7) { // Dar alta
+        } else if (opc == 7) {
             /* Dar alta ao paciente: remove registro se já foi chamado e não estiver na fila */
             char id[MAX_ID_LEN + 1];
             /* ORIGINAL (lista): printf("ID para dar alta: "); read_line(id, sizeof(id)); */
@@ -748,19 +749,25 @@ int main(){
                 continue;
             }
 
-            int rem_rc = ptree_remove(pt, id);
-            
-            if (rem_rc == 0)
-                message_and_clear("Paciente recebeu alta e foi removido do registro. Retornando ao menu...", MSG_WAIT_MEDIUM);
-            
-            else {
-                util_printf("Falha ao dar alta ao paciente. codigo=%d\n", rem_rc);
-                message_and_clear("Falha ao dar alta. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            /* Registrar alta no historico e resetar flag 'called' */
+            {
+                char item[PROC_MAX_LEN + 1];
+                char timestr[32] = {0};
+                (void)format_timestamp(timestr, sizeof(timestr));
+                if (timestr[0] != '\0')
+                    snprintf(item, sizeof(item), "[%s] Alta concedida", timestr);
+                else
+                    strncpy(item, "Alta concedida", sizeof(item) - 1), item[sizeof(item) - 1] = '\0';
+
+                /* tentar registrar a alta no histórico; ignorar erro se cheio */
+                (void)ptree_history_push(pt, id, item);
             }
 
-            message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
+            (void)ptree_set_called(pt, id, false);
+            (void)ptree_set_discharged(pt, id, true); /* marcar alta persistente */
+            message_and_clear("Alta concedida. Registro mantido. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
-        } else if (opc == 8) { // Sair
+        } else if (opc == 8) {
             /* Sair: salvar e terminar 
                Agora gravamos diretamente a partir da árvore.
                Comentário comparativo (antigo): salvar via PatientList era:
