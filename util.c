@@ -10,6 +10,33 @@
 #include <windows.h>
 #endif
 
+/*
+ * Módulo de utilidades de I/O e locale usado por todo o projeto.
+ *
+ * Responsabilidades:
+ * - Fornecer leitura robusta de linha (read_line/read_line_truncated) para menus e entradas em main.c.
+ * - Formatar timestamps legíveis (format_timestamp) para registro no histórico (history via patient_tree).
+ * - Imprimir texto UTF-8 corretamente em todos os sistemas (util_printf + print_utf8):
+ *     * Windows: converte UTF-8 para UTF-16 e escreve com WriteConsoleW (evita problemas de acentos).
+ *     * Unix-like: usa fputs/printf normal (terminais já são UTF-8).
+ * - Configurar locale/console no início da execução (util_setup_locale) para melhorar compatibilidade UTF-8.
+ *
+ * Integração com módulos atuais:
+ * - main.c usa util_printf para todas as mensagens com acentuação (pt‑BR) e read_line nos prompts.
+ * - patient_tree/history: registram textos no histórico; util_printf pode ser usado em inspeções.
+ * - io.c: persiste textos em UTF‑8; util.c não faz persistência.
+ *
+ * Convenções:
+ * - Funções retornam 0 em sucesso e valores negativos em erro quando aplicável.
+ * - Buffers usam tamanhos definidos em config.h (MAX_ID_LEN, MAX_NAME_LEN, PROC_MAX_LEN).
+ *
+ * Observações:
+ * - read_line() e read_line_truncated() garantem comportamento consistente e descarte do restante da linha.
+ * - format_timestamp() usa apenas APIs C99 (localtime + cópia para struct tm).
+ * - Combina util_setup_locale + util_printf para garantir saída correta com acentuação em todas as plataformas.
+ * - Este módulo não faz persistência em disco.
+ */
+
 // Flag interna usada por read_line para indicar se a última leitura foi truncada.
 static int last_truncated = 0;
 
@@ -248,11 +275,3 @@ void util_setup_locale(void) {
     }
 #endif
 }
-
-/* Implementações de util.h
- *
- * Observações:
- * - read_line() e read_line_truncated() garantem comportamento consistente e descarte do restante da linha.
- * - format_timestamp() usa apenas APIs C99 (localtime + cópia para struct tm).
- * - Este módulo não faz persistência em disco.
- */

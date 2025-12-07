@@ -6,6 +6,13 @@
  *  - Remoção troca dados com sucessor in-order para simplificar lógica.
  */
 
+/* PatientTree (AVL):
+ * - Chave = id (string). Busca/insere/remove em O(log n).
+ * - Cada nó armazena: id, nome, History*, flags (called, discharged) e prioridade (1..5).
+ * - Wrappers ptree_history_* expõem operações sobre o histórico associado.
+ * - Integrado com io.c para persistência (inclui histórico, flags e prioridade).
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include "patient_tree.h"
@@ -393,6 +400,8 @@ int ptree_history_is_full(const PatientTree *t, const char *id) {
     return (n && n->data.hist) ? (history_is_full(n->data.hist) ? 1 : 0) : 0;
 }
 
+/* Adiciona uma entrada ao histórico do paciente referenciado por 'id'.
+   Retorna 0 em sucesso, -1 em erro (paciente inexistente ou histórico cheio). */
 int ptree_history_push(PatientTree *t, const char *id, const char *proc) {
     if (!t || !id || !proc) 
         return -1;
@@ -402,6 +411,8 @@ int ptree_history_push(PatientTree *t, const char *id, const char *proc) {
     return (n && n->data.hist) ? history_push(n->data.hist, proc) : -1;
 }
 
+/* Remove a última entrada do histórico do paciente e copia para 'out'.
+   Retorna 0 em sucesso, -1 em erro (histórico vazio, id inválido ou parâmetros inválidos). */
 int ptree_history_pop(PatientTree *t, const char *id, char *out, size_t out_size) {
     if (!t || !id || !out || out_size == 0) 
         return -1;
@@ -410,6 +421,7 @@ int ptree_history_pop(PatientTree *t, const char *id, char *out, size_t out_size
     return (n && n->data.hist) ? history_pop(n->data.hist, out, out_size) : -1;
 }
 
+/* Retorna o número de entradas do histórico do paciente (0 se inexistente/sem histórico). */
 int ptree_history_size_by_id(const PatientTree *t, const char *id) {
     if (!t || !id) 
         return 0;
@@ -419,6 +431,8 @@ int ptree_history_size_by_id(const PatientTree *t, const char *id) {
     return (n && n->data.hist) ? history_size(n->data.hist) : 0;
 }
 
+/* Copia a entrada do histórico no índice 'hist_idx' para 'out' (sem remover).
+   Retorna 0 em sucesso, -1 em erro (índice inválido, paciente inexistente ou parâmetros inválidos). */
 int ptree_history_get_by_id(const PatientTree *t, const char *id, int hist_idx, char *out, size_t out_size) {
     if (!t || !id || !out || out_size == 0) 
         return -1;
@@ -448,6 +462,8 @@ int ptree_set_priority(PatientTree *t, const char *id, int pri) {
 
     return 0;
 }
+
+/* Obtém a prioridade do paciente (1..5); retorna 5 se inválido/inexistente (default). */
 int ptree_get_priority(const PatientTree *t, const char *id) {
     if (!t || !id) 
         return 5;
@@ -459,14 +475,24 @@ int ptree_get_priority(const PatientTree *t, const char *id) {
 
 /* Alta (discharge): define/consulta */
 int ptree_set_discharged(PatientTree *t, const char *id, bool discharged) {
-    if (!t || !id) return -1;
+    if (!t || !id) 
+        return -1;
+
     PatientNode *n = find_node(t->root, id);
-    if (!n) return -1;
+
+    if (!n) 
+        return -1;
+
     n->data.discharged = discharged;
     return 0;
 }
+
+/* Consulta flag de alta (discharged) do paciente.
+   Retorna 1 se alta concedida; 0 se não concedida ou se paciente/id inválido. */
 int ptree_is_discharged(const PatientTree *t, const char *id) {
-    if (!t || !id) return 0;
+    if (!t || !id) 
+        return 0;
+
     PatientNode *n = find_node((PatientNode *)t->root, id);
     return n && n->data.discharged ? 1 : 0;
 }

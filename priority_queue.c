@@ -3,6 +3,12 @@
 #include "priority_queue.h"
 #include "util.h"
 
+/* Implementação de PriorityQueue:
+ * - Heap binário com critério: menor prioridade primeiro; em empate, menor seq (mais antigo).
+ * - Conjunto de membros (hash) para consulta O(1) de existência.
+ * - Snapshot ordenado para acesso por índice sem alterar o heap.
+ */
+
 // Representa um item na fila de prioridade: id, prioridade e sequência de chegada (para desempate).
 struct PQNode {
     char id[MAX_ID_LEN + 1];

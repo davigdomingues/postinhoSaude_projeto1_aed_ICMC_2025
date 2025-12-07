@@ -5,10 +5,9 @@
 #include "config.h"
 #include "util.h"
 
-/* Implementação de History (pilha de procedimentos).
- *
- * Observações:
- * - Não faz I/O em disco; os dados são persistidos via io.c quando necessário.
+/* Implementação de History (pilha de procedimentos, em memória).
+ * - Persistência é responsabilidade de io.c (via ptree_history_*).
+ * - util_printf é usado para inspeção com suporte a UTF-8.
  */
 
 struct History {

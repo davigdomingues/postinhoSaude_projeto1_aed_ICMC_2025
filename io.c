@@ -1,21 +1,15 @@
-/* Módulo de I/O (persistência textual)
+/* Módulo de I/O (persistência textual, UTF-8)
  * - Salva/carrega PatientTree e PriorityQueue em formato legível.
- * - Escrita segura para .tmp e rename; leitura valida e normaliza encoding.
- * - Não acessa campos internos de History; usa wrappers da árvore.
+ * - Escrita segura via arquivo temporário (.tmp) seguida de rename; leitura valida formato e normaliza encoding.
+ * - Não acessa campos internos de History; usa wrappers expostos pela árvore (ptree_history_*).
  *
- * Funções exportadas (declaradas em io.h):
- * - io_save(const char *path, const PatientList *pl, const Queue *q)
- * - io_load(const char *path, PatientList *pl, Queue *q)
+ * Funções:
+ * - io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq)
+ * - io_load(const char *path, PatientTree *pt, PriorityQueue *pq)
  *
- * Função auxiliar estática:
- * - chomp(char *s)
- *     Remove terminadores de linha ('\n' and '\r') do fim de strings lidas com fgets.
- *
- * Dependências:
- * - PatientList e Queue expõem funções públicas usadas por este módulo (ex.: plist_insert,
- *   plist_history_push, plist_history_size_by_index, queue_enqueue, queue_size, queue_get_id_by_index).
- * - IO não acessa diretamente a campos internos de History; usa apenas as APIs públicas
- *   (history_* ou wrappers plist_history_*) para obter/escrever dados do histórico.
+ * Encoding:
+ * - io_load verifica UTF-8; se inválido, converte de CP1252 para UTF-8 (compatibilidade Windows antiga).
+ * - io_save escreve UTF-8.
  *
  * Observações de persistência:
  * - io_save implementa gravação segura: escreve para path + ".tmp" e só substitui
@@ -464,7 +458,7 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
         called_flag = ptree_is_called(c->pt, id) ? 1 : 0;
         
     fprintf(wf, "%d\n", called_flag);
-    /* novo: prioridade registrada do paciente */
+    /* prioridade registrada do paciente */
     int pri = ptree_get_priority(c->pt, id);
 
     if (pri < 1 || pri > 5) 

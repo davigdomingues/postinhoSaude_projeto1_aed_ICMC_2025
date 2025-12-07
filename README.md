@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD037 -->
 # Postinho de Saúde - Projeto 1 e 2 (AED, ICMC 2025)
 
 ## Resumo
@@ -38,9 +39,9 @@ Arquivos principais (esperados neste diretório):
 - patient_tree.h/c    — árvore AVL de pacientes (busca/insere/remove, flags e prioridade).
 - priority_queue.h/c  — fila de prioridade (heap min por prioridade 1..5, desempate por chegada).
 - history.h/c         — pilha de procedimentos por paciente (push, pop, is_full).
-- io.h/c              — funções de leitura/gravação para persistência (io_load, io_save).
-- util.h/c            — utilitários (por exemplo, read_line).
-- clear_screen.h/c    — função para limpar a tela em cada iteração do menu.
+- io.h/c              — funções de leitura/gravação para persistência (io_load, io_save, normalização CP1252→UTF‑8).
+- util.h/c            — utilitários (read_line, util_printf UTF‑8, format_timestamp, locale).
+- clear_screen.h/c    — utilidades de UI (limpar tela e mensagens temporizadas).
 - proj1VersaoAtualizada.pdf, projeto2.pdf — especificações do projeto (subdivido em duas partes).
 
 ## Persistência (DATA_FILE)
@@ -57,7 +58,8 @@ Arquivos principais (esperados neste diretório):
      - n_history (int)
      - n_history linhas com entradas do histórico
      - called_flag (0/1)
-     - priority (int) — novo campo; em ficheiros antigos pode estar ausente e assume 5
+     - priority (int) — em ficheiros antigos pode estar ausente e assume 5
+     - discharged_flag (0/1) — em ficheiros antigos pode estar ausente e assume 0
   3. tamanho da fila (int)
   4. para cada item da fila:
      - id (linha)
@@ -170,7 +172,7 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
   - util.c / util.h (util_printf, print_utf8, util_setup_locale)
   - patient_tree.c / patient_tree.h (AVL, wrappers de histórico, prioridade e called)
   - priority_queue.c / priority_queue.h (heap de prioridade + membership)
-  - queue.c / queue.h e patient_list.c / .h (mantidos por compatibilidade e referência)
+  - queue.c / queue.h e patient_list.c / .h (mantidos por compatibilidade e referência; não usados pelo main atual)
   - main.c (uso de ptree+pqueue; impressão UTF‑8)
   - README.md (esta atualização)
 
@@ -186,7 +188,7 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
   - Árvore AVL de pacientes (patient_tree.*): busca/insere/remove em O(log n), histórico por paciente, flags 'called' e prioridade 1..5.
   - Fila de prioridade (priority_queue.*): heap min por prioridade (1 = emergência ... 5 = não urgência) com desempate por ordem de chegada (seq).
   - Histórico (history.*): pilha fixa por paciente (HIST_MAX).
-  - I/O (io.*): formato textual com normalização UTF‑8 em carga e escrita robusta via tmp+rename; leitura compatível com ficheiros antigos sem prioridade.
+  - I/O (io.*): formato textual com normalização UTF‑8 em carga (CP1252→UTF‑8 quando necessário) e escrita robusta via tmp+rename; leitura compatível com ficheiros antigos sem prioridade/alta.
   - Utilidades (util.* e clear_screen.*): leitura segura, timestamps, console UTF‑8 (Windows) e UI básica.
 
 - Observação:
@@ -196,7 +198,7 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
 
 - Objetivo do projeto: código compatível com C99 e pedantic.
 - Build padrão do Makefile está em C11 por conveniência. Para verificação C99:
-  - gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
+  - `gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c`
 - Pontos de atenção:
   - Comentários // são aceitos no C99.
   - Funções util_* substituem strnlen/strdup para evitar dependências fora do C99.
@@ -284,3 +286,4 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
 Davi Gabriel Domingues (15447497)
 Caio Cerceau Nanni (16858556)
 Felipe Gausmann Socolowski (16812461)
+<!-- markdownlint-enable MD037 -->
