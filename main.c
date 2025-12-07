@@ -261,7 +261,7 @@ int main(){
             /* Lê ID manualmente, aceita apenas dígitos e evita duplicata.
                Faz trim de espaços, usa strnlen e valida cada caractere com isdigit. */
             for (;;) {
-                printf("ID (somente digitos): ");
+                util_printf("ID (somente dígitos): ");
                 read_line(id, sizeof(id));
 
                 /* rejeita imediatamente se a entrada foi maior que o buffer */
@@ -339,7 +339,7 @@ int main(){
                         int pri;
                         
                         for (;;) {
-                            printf("Prioridade (1 = Emergencia, 2 = Muito urgente, 3 = Urgente, 4 = Pouco urgente, 5 = Nao urgencia): ");
+                            util_printf("Prioridade (1 = Emergência, 2 = Muito urgente, 3 = Urgente, 4 = Pouco urgente, 5 = Não urgência): ");
                             char pbuf[16];
                             read_line(pbuf, sizeof(pbuf));
                             pri = atoi(pbuf);
@@ -658,7 +658,7 @@ int main(){
 
             {
                 char __tmp_wait[8];
-                printf("\nPressione Enter para retornar ao menu");
+                util_printf("\nPressione Enter para retornar ao menu");
                 fflush(stdout);
                 read_line(__tmp_wait, sizeof(__tmp_wait));
                 clear_screen();
@@ -817,7 +817,7 @@ int main(){
                     
                     {
                         char __tmp_wait[8];
-                        printf("\nPressione Enter para retornar ao submenu");
+                        util_printf("\nPressione Enter para retornar ao submenu");
                         fflush(stdout);
                         read_line(__tmp_wait, sizeof(__tmp_wait));
                         clear_screen();
@@ -856,7 +856,7 @@ int main(){
             } 
             
             else
-                message_and_clear("Falha ao chamar proximo paciente.", MSG_WAIT_SHORT);
+                message_and_clear("Falha ao chamar próximo paciente.", MSG_WAIT_SHORT);
         } 
         
         else if (opc == 6) { // Mostrar fila
@@ -886,7 +886,7 @@ int main(){
 
                 {
                     char __tmp_wait[8];
-                    printf("\nPressione Enter para retornar ao menu");
+                    util_printf("\nPressione Enter para retornar ao menu");
                     fflush(stdout);
                     read_line(__tmp_wait, sizeof(__tmp_wait));
                     clear_screen();
@@ -993,7 +993,7 @@ int main(){
         } 
         
         else {
-            printf("Opcao invalida.\n");
+            util_printf("Opção inválida.\n");
             message_and_clear("Retornando ao menu...", MSG_WAIT_SHORT);
         }
     }
