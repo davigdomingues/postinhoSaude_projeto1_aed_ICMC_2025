@@ -3,10 +3,18 @@
 
 #include <stddef.h>
 
-/* Configuração de locale e console (UTF-8) — mover do main para util */
+/* Configuração de locale e console (UTF-8)
+ * - Deve ser chamada no início da aplicação (main) para ajustar codepage/locale.
+ * - Proporciona exibição correta de acentos no Windows e compatibilidade em POSIX.
+ */
 void util_setup_locale(void);
 
 /* Utilitários de I/O locais e timestamp.
+ *
+ * Funções:
+ * - read_line/read_line_truncated: leitura segura do stdin com descarte do restante em truncamento.
+ * - format_timestamp: formata data/hora local no formato "YYYY-MM-DD HH:MM".
+ * - util_printf/print_utf8: saída UTF-8 correta (Windows via WriteConsoleW; POSIX via fputs).
  *
  * Observações:
  * - Funções aqui são utilitárias para leitura segura do stdin e formatação de timestamps.

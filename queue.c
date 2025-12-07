@@ -29,26 +29,36 @@ struct QHashEntry {
     struct QHashEntry *next;
 };
 
+/* djb2: hash de strings para o membership-set da fila */
 static unsigned long q_hash_str(const char *s) {
     unsigned long hash = 5381;
     int c;
+
     while ((c = (unsigned char)*s++))
         hash = ((hash << 5) + hash) + c;
+
     return hash;
 }
 
+/* Inicializa conjunto de membros com 'buckets' */
 static int qset_init(Queue *q, size_t buckets) {
     q->members = (struct QHashEntry **)calloc(buckets, sizeof(struct QHashEntry *));
-    if (!q->members) return -1;
+
+    if (!q->members) 
+        return -1;
+
     q->mcap = buckets;
     return 0;
 }
 
 /* liberta todos os elementos do conjunto de membros (hash-set) */
 static void qset_free(Queue *q) {
-    if (!q || !q->members) return;
+    if (!q || !q->members) 
+        return;
+
     for (size_t i = 0; i < q->mcap; ++i) {
         struct QHashEntry *e = q->members[i];
+
         while (e) {
             struct QHashEntry *n = e->next;
             free(e->key);
@@ -56,7 +66,9 @@ static void qset_free(Queue *q) {
             e = n;
         }
     }
+
     free(q->members);
+
     q->members = NULL;
     q->mcap = 0;
 }
@@ -69,18 +81,18 @@ static void qset_add(Queue *q, const char *id) {
     unsigned long h = q_hash_str(id) % q->mcap;
     struct QHashEntry *e = q->members[h];
 
-    while (e) { 
-        if (strcmp(e->key, id) == 0) 
-        return;
-
+    while (e) {
+        if (strcmp(e->key, id) == 0) return;
         e = e->next;
-   
     }
+
     e = malloc(sizeof(*e));
+    
     if (!e) 
         return;
 
     e->key = util_strdup(id); /* substitui strdup por versão C99 */
+    
     if (!e->key) { 
         free(e); 
         return; 
@@ -92,9 +104,12 @@ static void qset_add(Queue *q, const char *id) {
 
 /* remove um id do conjunto de membros */
 static void qset_remove(Queue *q, const char *id) {
-    if (!q || !q->members || !id) return;
+    if (!q || !q->members || !id) 
+        return;
+
     unsigned long h = q_hash_str(id) % q->mcap;
     struct QHashEntry **pe = &q->members[h];
+
     while (*pe) {
         if (strcmp((*pe)->key, id) == 0) {
             struct QHashEntry *rem = *pe;
@@ -109,19 +124,29 @@ static void qset_remove(Queue *q, const char *id) {
 
 /* verifica rapidamente se o id pertence ao conjunto (1) ou nao (0) */
 static int qset_contains(const Queue *q, const char *id) {
-    if (!q || !q->members || !id) return 0;
+    if (!q || !q->members || !id) 
+        return 0;
+
     unsigned long h = q_hash_str(id) % q->mcap;
     struct QHashEntry *e = q->members[h];
-    while (e) { if (strcmp(e->key, id) == 0) return 1; e = e->next; }
+
+    while (e) {
+        if (strcmp(e->key, id) == 0) return 1;
+        e = e->next;
+    }
+
     return 0;
 }
 
 /* Inicializa estrutura interna da fila (head=0, size=0, cap=cap) */
 static int queue_init(Queue *q, int cap) {
-    if (!q || cap <= 0 || cap > WAIT_CAP) return -1;
+    if (!q || cap <= 0 || cap > WAIT_CAP) 
+        return -1;
+
     q->head = 0;
     q->size = 0;
     q->cap = cap;
+
     return 0;
 }
 
@@ -131,14 +156,22 @@ static int queue_init(Queue *q, int cap) {
    - incrementa size
    - retorna -1 se fila cheia ou parametros invalidos */
 int queue_enqueue(Queue *q, const char *id) {
-    if (!q || !id) return -1;
-    if (q->size >= q->cap) return -1;
+    if (!q || !id) 
+        return -1;
+
+    if (q->size >= q->cap) 
+        return -1;
+
     int idx = (q->head + q->size) % q->cap;
     strncpy(q->ids[idx], id, MAX_ID_LEN);
+
     q->ids[idx][MAX_ID_LEN] = '\0';
     q->size++;
+
     /* atualizar conjunto de membros */
-    if (q->members) qset_add(q, id);
+    if (q->members) 
+        qset_add(q, id);
+
     return 0;
 }
 
@@ -148,14 +181,21 @@ int queue_enqueue(Queue *q, const char *id) {
    - retorna -1 se fila vazia
 */
 int queue_dequeue(Queue *q, char *out, size_t out_size) {
-    if (!q || !out || out_size == 0) return -1;
-    if (q->size == 0) return -1;
+    if (!q || !out || out_size == 0) 
+        return -1;
+
+    if (q->size == 0) 
+        return -1;
+
     strncpy(out, q->ids[q->head], out_size - 1);
     out[out_size - 1] = '\0';
     /* remove do conjunto de membros */
-    if (q->members) qset_remove(q, out);
+    if (q->members) 
+        qset_remove(q, out);
+
     q->head = (q->head + 1) % q->cap;
     q->size--;
+    
     return 0;
 }
 
@@ -167,11 +207,18 @@ int queue_is_full(const Queue *q) {
 /* Verifica existencia de um ID na fila (1 presente, 0 ausente) */
 int queue_contains(const Queue *q, const char *id) {
     /* usa hash-set membership se disponível */
-    if (!q || !id) return 0;
-    if (q->members) return qset_contains(q, id);
+    if (!q || !id) 
+        return 0;
+
+    if (q->members) 
+        return qset_contains(q, id);
+
     /* fallback */
-    for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
-        if (strcmp(q->ids[idx], id) == 0) return 1;
+    for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap) {
+        if (strcmp(q->ids[idx], id) == 0) 
+            return 1;
+    }
+
     return 0;
 }
 
@@ -180,24 +227,38 @@ int queue_contains(const Queue *q, const char *id) {
    - imprime posicao (1-based) e id correspondente
 */
 void queue_print(const Queue *q) {
-    if (!q) return;
+    if (!q) 
+        return;
     
     for (int i = 0, idx = q->head; i < q->size; ++i, idx = (idx + 1) % q->cap)
         util_printf("%d: %s\n", i + 1, q->ids[idx]);
 }
 
 /* Criacao / destruicao da fila (aloca o TAD opaco) */
-Queue* queue_create(int cap) {
+Queue *queue_create(int cap) {
     Queue *q = malloc(sizeof(Queue));
-    if (!q) return NULL;
-    if (queue_init(q, cap) != 0) { free(q); return NULL; }
+
+    if (!q) 
+        return NULL;
+
+    if (queue_init(q, cap) != 0) { 
+        free(q); 
+        return NULL; 
+    }
+
     /* inicializa conjunto de membros com um pequeno número de buckets */
-    if (qset_init(q, (size_t)cap * 2 + 3) != 0) { free(q); return NULL; }
+    if (qset_init(q, (size_t)cap * 2 + 3) != 0) { 
+        free(q); 
+        return NULL; 
+    }
+
     return q;
 }
 
 void queue_destroy(Queue *q) {
-    if (!q) return;
+    if (!q) 
+        return;
+
     qset_free(q);
     free(q);
 }
@@ -207,11 +268,17 @@ int queue_size(const Queue *q) {
     return q ? q->size : 0;
 }
 
+/* Obtém id pelo índice lógico a partir de head, com wrap-around */
 int queue_get_id_by_index(const Queue *q, int index, char *out, size_t out_size) {
-    if (!q || !out || out_size == 0) return -1;
-    if (index < 0 || index >= q->size) return -1;
+    if (!q || !out || out_size == 0) 
+        return -1;
+
+    if (index < 0 || index >= q->size) 
+        return -1;
+
     int idx = (q->head + index) % q->cap;
     strncpy(out, q->ids[idx], out_size - 1);
     out[out_size - 1] = '\0';
+    
     return 0;
 }

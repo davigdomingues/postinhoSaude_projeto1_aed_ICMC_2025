@@ -1,11 +1,7 @@
-/* Explicação:
- *
- * Propósito:
- * - Serializar (salvar) e desserializar (carregar) as estruturas centrais do
- *   sistema: a lista de pacientes (PatientList) e a fila de espera (Queue).
- * - O ficheiro usa um formato textual simples, legível, onde cada
- *   item é escrito em linha separada seguindo uma ordem estrita definida por io_save
- *   e esperada por io_load.
+/* Módulo de I/O (persistência textual)
+ * - Salva/carrega PatientTree e PriorityQueue em formato legível.
+ * - Escrita segura para .tmp e rename; leitura valida e normaliza encoding.
+ * - Não acessa campos internos de History; usa wrappers da árvore.
  *
  * Funções exportadas (declaradas em io.h):
  * - io_save(const char *path, const PatientList *pl, const Queue *q)
@@ -46,7 +42,8 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
 
 /* Remove terminadores de linha CR/LF do fim da string lida com fgets */
 static void chomp(char *s) {
-    if (!s) return;
+    if (s == NULL)
+        return;
 
     size_t n = strlen(s);
 
@@ -75,7 +72,9 @@ int io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq) {
         return -1;
 
     FILE *f = fopen(tmp, "w");
-    if (!f) return -1;
+
+    if (!f) 
+        return -1;
 
     /* escreve número total de pacientes primeiro */
     size_t n_pat = ptree_size(pt);
@@ -92,8 +91,13 @@ int io_save(const char *path, const PatientTree *pt, const PriorityQueue *pq) {
     for (int i = 0; i < qsize; ++i) {
         char id[MAX_ID_LEN + 2];
         int prio = 0;
-        if (pqueue_get_id_by_index(pq, i, id, sizeof(id)) != 0) continue;
-        if (pqueue_get_priority_by_index(pq, i, &prio) != 0) prio = 5;
+
+        if (pqueue_get_id_by_index(pq, i, id, sizeof(id)) != 0)
+            continue;
+
+        if (pqueue_get_priority_by_index(pq, i, &prio) != 0)
+            prio = 5;
+
         fprintf(f, "%s\n%d\n", id, prio);
     }
 
@@ -125,11 +129,18 @@ static int cp1252_to_utf8(const char *in, char *out, size_t out_size);
    - senão assume CP1252 e tenta converter para UTF-8, copiando o resultado para o buffer
    - usa um buffer temporário alocado dinamicamente (3x tamanho do original) */
 static void normalize_to_utf8_inplace(char *s, size_t buf_size) {
-    if (!s || buf_size == 0) return;
-    if (is_valid_utf8(s)) return;
+    if (!s || buf_size == 0) 
+        return;
+
+    if (is_valid_utf8(s)) 
+        return;
+
     size_t tmp_size = buf_size * 3 + 8;
     char *tmp = (char *)malloc(tmp_size);
-    if (!tmp) return;
+
+    if (!tmp) 
+        return;
+
     if (cp1252_to_utf8(s, tmp, tmp_size) == 0) {
         strncpy(s, tmp, buf_size - 1);
         s[buf_size - 1] = '\0';
@@ -167,7 +178,7 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
         fclose(f);
         return -2;
     }
-    
+
     n_pat = (size_t)n_pat_ul;
 
     for (size_t i = 0; i < n_pat; ++i) {
@@ -240,9 +251,21 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
             fseek(f, pos_after_called, SEEK_SET);
 
         (void)ptree_set_priority(pt, id, pri_read);
+
+        /* tentar ler discharged_flag (compatível com ficheiros antigos) */
+        long pos_after_pri = ftell(f);
+        int dflag = 0, maybe_df = 0;
+
+        if (fscanf(f, "%d\n", &maybe_df) == 1 && (maybe_df == 0 || maybe_df == 1))
+            dflag = maybe_df;
+
+        else
+            fseek(f, pos_after_pri, SEEK_SET);
+        (void)ptree_set_discharged(pt, id, dflag ? true : false);
     }
 
     int m = 0;
+    
     if (fscanf(f, "%d\n", &m) != 1) { 
         fclose(f); 
         return -2; 
@@ -250,6 +273,7 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
 
     for (int i = 0; i < m; ++i) {
         char id[MAX_ID_LEN + 2];
+
         if (!fgets(id, sizeof(id), f)) { 
             fclose(f); 
             return -2; 
@@ -262,14 +286,17 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
         int prio = 5;
         long pos = ftell(f);
         int maybe;
-        if (fscanf(f, "%d\n", &maybe) == 1 && maybe >= 1 && maybe <= 5) {
+
+        if (fscanf(f, "%d\n", &maybe) == 1 && maybe >= 1 && maybe <= 5)
             prio = maybe;
-        } else {
+        
+        else
             /* rewind para pos se leitura inválida (ficheiro antigo sem prioridade) */
             fseek(f, pos, SEEK_SET);
-        }
+
         (void)pqueue_enqueue(pq, id, prio);
     }
+
     fclose(f);
     return 0;
 }
@@ -281,21 +308,38 @@ int io_load(const char *path, PatientTree *pt, PriorityQueue *pq) {
 static int is_valid_utf8(const char *s) {
     const unsigned char *bytes = (const unsigned char *)s;
     while (*bytes) {
-        if (*bytes < 0x80) { bytes++; continue; }
+        if (*bytes < 0x80) {
+            bytes++;
+            continue;
+        }
+
         if ((*bytes & 0xE0) == 0xC0) {
-            if ((bytes[1] & 0xC0) != 0x80) return 0;
-            bytes += 2; continue;
+            if ((bytes[1] & 0xC0) != 0x80)
+                return 0;
+
+            bytes += 2;
+            continue;
         }
+
         if ((*bytes & 0xF0) == 0xE0) {
-            if ((bytes[1] & 0xC0) != 0x80 || (bytes[2] & 0xC0) != 0x80) return 0;
-            bytes += 3; continue;
+            if ((bytes[1] & 0xC0) != 0x80 || (bytes[2] & 0xC0) != 0x80)
+                return 0;
+
+            bytes += 3;
+            continue;
         }
+
         if ((*bytes & 0xF8) == 0xF0) {
-            if ((bytes[1] & 0xC0) != 0x80 || (bytes[2] & 0xC0) != 0x80 || (bytes[3] & 0xC0) != 0x80) return 0;
-            bytes += 4; continue;
+            if ((bytes[1] & 0xC0) != 0x80 || (bytes[2] & 0xC0) != 0x80 || (bytes[3] & 0xC0) != 0x80)
+                return 0;
+
+            bytes += 4;
+            continue;
         }
+
         return 0;
     }
+    
     return 1;
 }
 
@@ -327,7 +371,9 @@ static const unsigned short cp1252_table[128] = {
    Esta função é usada quando detectamos que uma linha lida não está em UTF‑8
    e presumimos que esteja em CP1252 (Windows-1252). */
 static int cp1252_to_utf8(const char *in, char *out, size_t out_size) {
-    if (!in || !out || out_size == 0) return -1;
+    if (!in || !out || out_size == 0) 
+        return -1;
+        
     size_t ri = 0;
     const unsigned char *p = (const unsigned char *)in;
 
@@ -342,20 +388,34 @@ static int cp1252_to_utf8(const char *in, char *out, size_t out_size) {
 
         /* codificar cp em UTF-8 */
         if (cp <= 0x7F) {
-            if (ri + 1 >= out_size) return -1;
+            if (ri + 1 >= out_size)
+                return -1;
+
             out[ri++] = (char)cp;
-        } else if (cp <= 0x7FF) {
-            if (ri + 2 >= out_size) return -1;
+        } 
+        
+        else if (cp <= 0x7FF) {
+            if (ri + 2 >= out_size)
+                return -1;
+
             out[ri++] = (char)(0xC0 | ((cp >> 6) & 0x1F));
             out[ri++] = (char)(0x80 | (cp & 0x3F));
-        } else if (cp <= 0xFFFF) {
-            if (ri + 3 >= out_size) return -1;
+        } 
+        
+        else if (cp <= 0xFFFF) {
+            if (ri + 3 >= out_size)
+                return -1;
+
             out[ri++] = (char)(0xE0 | ((cp >> 12) & 0x0F));
             out[ri++] = (char)(0x80 | ((cp >> 6) & 0x3F));
             out[ri++] = (char)(0x80 | (cp & 0x3F));
-        } else {
+        } 
+        
+        else {
             /* suporte para pontos de código maiores (raro no CP1252) */
-            if (ri + 4 >= out_size) return -1;
+            if (ri + 4 >= out_size) 
+            return -1;
+
             out[ri++] = (char)(0xF0 | ((cp >> 18) & 0x07));
             out[ri++] = (char)(0x80 | ((cp >> 12) & 0x3F));
             out[ri++] = (char)(0x80 | ((cp >> 6) & 0x3F));
@@ -363,7 +423,9 @@ static int cp1252_to_utf8(const char *in, char *out, size_t out_size) {
         }
     }
 
-    if (ri >= out_size) return -1;
+    if (ri >= out_size)
+        return -1;
+
     out[ri] = '\0';
     return 0;
 }
@@ -372,7 +434,10 @@ static int cp1252_to_utf8(const char *in, char *out, size_t out_size) {
 static void write_patient_cb(const char *id, const char *name, bool called, void *ud) {
     (void)called; /* evita warning de parâmetro não usado */
     struct SaveCtx *c = (struct SaveCtx*)ud;
-    if (!c || !c->f) return;
+
+    if (!c || !c->f) 
+        return;
+
     FILE *wf = c->f;
     /* id/name já estão fornecidos pelo inorder */
     fprintf(wf, "%s\n%s\n", id, name);
@@ -382,7 +447,10 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
     fprintf(wf, "%d\n", n_hist);
     for (int k = 0; k < n_hist; ++k) {
         char line[PROC_MAX_LEN + 2];
-        if (ptree_history_get_by_id(c->pt, id, k, line, sizeof(line)) != 0) continue;
+        
+        if (ptree_history_get_by_id(c->pt, id, k, line, sizeof(line)) != 0)
+            continue;
+
         fprintf(wf, "%s\n", line);
     }
 
@@ -391,11 +459,19 @@ static void write_patient_cb(const char *id, const char *name, bool called, void
     /* chamado: verifica se está na fila de prioridades */
     if (c->pq && pqueue_contains(c->pq, id))
         called_flag = 0;
+
     else
         called_flag = ptree_is_called(c->pt, id) ? 1 : 0;
+        
     fprintf(wf, "%d\n", called_flag);
     /* novo: prioridade registrada do paciente */
     int pri = ptree_get_priority(c->pt, id);
-    if (pri < 1 || pri > 5) pri = 5;
+
+    if (pri < 1 || pri > 5) 
+        pri = 5;
+
     fprintf(wf, "%d\n", pri);
+    
+    int discharged_flag = ptree_is_discharged(c->pt, id) ? 1 : 0;
+    fprintf(wf, "%d\n", discharged_flag);
 }

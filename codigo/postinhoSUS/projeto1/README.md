@@ -4,9 +4,9 @@
 
 Este repositório contém uma implementação didática de um sistema de gestão para um "postinho de saúde" (projeto didático de AED). Ele gere um cadastro de pacientes, uma fila de espera para atendimento e um histórico de procedimentos por paciente, com persistência em disco entre execuções.
 
-## Contexto do Trabalho
+## Contexto do PDF
 
-Os arquivos presentes no diretório 'documentacaoEnunciado_projetos' (e materiais auxiliares) acompanhados neste repositório trazem a especificação do projeto em cada parte (1 e 2), os requisitos e os detalhes de implementação. Em linhas gerais, o sistema implementado segue o escopo descrito nos PDFs:
+O arquivo `proj1VersaoAtualizada.pdf` acompanhado neste repositório traz a especificação do projeto, requisitos e detalhes de implementação. Em linhas gerais, o sistema implementado segue o escopo descrito no PDF:
 
 - Gerir uma lista de pacientes (cadastro, remoção e busca).
 - Manter uma fila de espera (enfileirar, desenfileirar, imprimir, remover específico).
@@ -16,17 +16,13 @@ Os arquivos presentes no diretório 'documentacaoEnunciado_projetos' (e materiai
 
 ## Resumo rápido das funcionalidades (conforme implementação em `main.c`)
 
-1. Registrar paciente (cadastra na árvore e opcionalmente insere na fila por prioridade).
-2. Remover paciente (óbito) — só permite se não estiver na fila e se já tiver sido chamado.
-3. Listar pacientes (inorder por ID).
-4. Buscar paciente por ID (submenu):
-   - 1: Adicionar procedimento (com timestamp, se disponível).
-   - 2: Desfazer último procedimento.
-   - 3: Mostrar histórico completo.
-   - 4: Voltar.
-5. Chamar próximo paciente (dequeue pela menor prioridade; desempate por chegada).
-6. Mostrar fila de espera (resolve nomes por árvore e exibe prioridade).
-7. Dar alta (remove registro se foi chamado e não está na fila).
+1. Registrar paciente (inserir no cadastro e opcionalmente na fila de espera).  
+2. Registrar óbito (remoção definitiva do cadastro com checagens de integridade).  
+3. Adicionar procedimento ao histórico do paciente.  
+4. Desfazer o último procedimento do histórico.  
+5. Chamar paciente (retirar da fila e marcar como chamado).  
+6. Mostrar fila de espera (o programa resolve nomes e imprime; a fila não possui função de impressão pública).  
+7. Mostrar histórico de um paciente.  
 8. Sair e salvar os dados.
 
 ## Estrutura geral do código
@@ -35,13 +31,13 @@ Arquivos principais (esperados neste diretório):
 
 - main.c              — ponto de entrada e interface com o usuário.
 - config.h            — configurações e constantes (tamanhos máximos, capacidade da fila, nome do arquivo de dados).
-- patient_tree.h/c    — árvore AVL de pacientes (busca/insere/remove, flags e prioridade).
-- priority_queue.h/c  — fila de prioridade (heap min por prioridade 1..5, desempate por chegada).
+- patient_list.h/c    — implementação da lista de pacientes (inserção, busca, remoção, liberação).
+- queue.h/c           — implementação da fila de espera (enqueue, dequeue, contains, size, get_by_index; sem funções de UI).
 - history.h/c         — pilha de procedimentos por paciente (push, pop, is_full).
 - io.h/c              — funções de leitura/gravação para persistência (io_load, io_save).
 - util.h/c            — utilitários (por exemplo, read_line).
 - clear_screen.h/c    — função para limpar a tela em cada iteração do menu.
-- proj1VersaoAtualizada.pdf, projeto2.pdf — especificações do projeto (subdivido em duas partes).
+- proj1VersaoAtualizada.pdf — especificação do projeto.
 
 ## Persistência (DATA_FILE)
 
@@ -57,11 +53,8 @@ Arquivos principais (esperados neste diretório):
      - n_history (int)
      - n_history linhas com entradas do histórico
      - called_flag (0/1)
-     - priority (int) — novo campo; em ficheiros antigos pode estar ausente e assume 5
   3. tamanho da fila (int)
-  4. para cada item da fila:
-     - id (linha)
-     - priority (int) — novo campo; em ficheiros antigos pode estar ausente e assume 5
+  4. ids da fila (uma por linha)
 - Observação: comprimentos das strings obedecem a `MAX_ID_LEN`, `MAX_NAME_LEN`, `PROC_MAX_LEN` em `config.h`. A especificação detalhada e regras de leitura estão em `io.h`.
 
 ## Compilação
@@ -72,7 +65,7 @@ Recomendado (MSYS/MinGW, Unix):
 make
 ```
 
-Executável produzido: `/main` (Linux) ou `main.exe` (Windows)
+Executável produzido: `output/main.exe`
 
 Alternativa (Windows sem make):
 
@@ -87,7 +80,8 @@ Adicional (Windows / PowerShell)
   - CMD/PowerShell: .\scripts\build.bat
 - Alternativa rápida sem scripts (no PowerShell):
   - cd "d:\pastasGitClonadas\postinhoSaude_projeto1_aed_ICMC_2025"
-  - gcc -std=c11 -Wall -Wextra -g3 *.c -o main.exe
+  - mkdir output
+  - gcc -std=c11 -Wall -Wextra -g3 *.c -o output\main.exe
 - Nota: este repositório inclui `scripts\build.bat` (script de compilação). Caso queira manter apenas o script dentro da pasta `scripts`, remova o `build.bat` na raiz (por exemplo: `git rm build.bat` e commite). Após remover o stub, atualize a task do VSCode (.vscode/tasks.json) para apontar para `scripts\\build.bat` se necessário.
 
 (script incluído gera `output\main.exe`).
@@ -95,7 +89,7 @@ Adicional (Windows / PowerShell)
 - Alternativa direta:
 
 ```bash
-gcc -Wall -Wextra -g3 *.c -o main
+gcc -Wall -Wextra -g3 *.c -o output/main.exe
 ```
 
 ## Execução e teste rápido
@@ -103,8 +97,8 @@ gcc -Wall -Wextra -g3 *.c -o main
 1. (Opcional) Converter `data.bin` para UTF‑8 com `scripts/convert_data.*` se suspeitar de CP1252.
 2. Abrir PowerShell/terminal e, se no Windows, executar os comandos de encoding indicados acima.
 3. Executar:
-   - Windows: `\main.exe`
-   - Unix/Git Bash: `/main`
+   - Windows: `output\main.exe`
+   - Unix/Git Bash: `./output/main.exe`
 4. Teste: insira nomes com acentos, adicione histórico, salve (opção 8), reinicie e verifique a persistência/exibição.
 
 ## Depuração de problemas de persistência
@@ -158,20 +152,21 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
   - Motivo: garantir que printf mostre acentuação corretamente no conhost/PowerShell.
 
 - Otimizações de desempenho
-  - patient_tree.c: implementação de árvore AVL para operações O(log n), priorizando a busca de pacientes.
-  - priority_queue.c: heap com hash-set interno para membership rápido, a fim de amortizar as operações da árvore em si.
+  - patient_list.c: adição de tabela hash interna (separate chaining) para mapear id→índice (plist_htable_*). plist_find_index usa a hash para O(1) em consultas habituais.
+  - queue.c: adição de hash‑set interno para membership (qset_*), tornando queue_contains O(1).
   - Motivo: reduzir custo de validações/entities frequentes (plist_find_index, queue_contains) sem alterar formato de persistência.
 
-- API/semântica mantidas (comparado ao projeto 1)
-  - Não houve mudança nas assinaturas públicas (patient_tree.h, priority_queue.h, history.h, io.h permanecem compatíveis). Persistência (formato textual) aceita o mesmo layout; io_save continua gravando UTF‑8.
+- API/semântica mantidas
+  - Não houve mudança nas assinaturas públicas (patient_list.h, queue.h, history.h, io.h permanecem compatíveis). Persistência (formato textual) aceita o mesmo layout; io_save continua gravando UTF‑8.
 
-- Arquivos alterados, em relação ao projeto 1 (resumo)
-  - io.c/io.h (prioridade por paciente e por item na fila no formato textual; normalização CP1252→UTF‑8)
-  - util.c / util.h (util_printf, print_utf8, util_setup_locale)
-  - patient_tree.c / patient_tree.h (AVL, wrappers de histórico, prioridade e called)
-  - priority_queue.c / priority_queue.h (heap de prioridade + membership)
-  - queue.c / queue.h e patient_list.c / .h (mantidos por compatibilidade e referência)
-  - main.c (uso de ptree+pqueue; impressão UTF‑8)
+- Arquivos alterados (resumo)
+  - io.c (normalização CP1252→UTF‑8 na carga)
+  - io.h (documentação do formato permanece, mas io.c adicionou comentários/funcs internas)
+  - util.c / util.h (util_printf, print_utf8)
+  - patient_list.c / patient_list.h (tabela hash interna, ajustes)
+  - queue.c / queue.h (hash‑set membership para fila, ajuste de prints)
+  - history.c / history.h (uso de util_printf em debug)
+  - main.c (substituição de prints que exibem dados carregados por util_printf)
   - README.md (esta atualização)
 
 ## Testes recomendados
@@ -180,68 +175,13 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
 2. Verificar que nomes com acento são mostrados corretamente e que a fila/historico exibem entradas com acentos.
 3. Inserir novos pacientes com acentos, salvar (opção 8) e reler o ficheiro para garantir persistência correta.
 
-## Arquitetura atual (resumo rápido)
-
-- Estruturas de runtime:
-  - Árvore AVL de pacientes (patient_tree.*): busca/insere/remove em O(log n), histórico por paciente, flags 'called' e prioridade 1..5.
-  - Fila de prioridade (priority_queue.*): heap min por prioridade (1 = emergência ... 5 = não urgência) com desempate por ordem de chegada (seq).
-  - Histórico (history.*): pilha fixa por paciente (HIST_MAX).
-  - I/O (io.*): formato textual com normalização UTF‑8 em carga e escrita robusta via tmp+rename; leitura compatível com ficheiros antigos sem prioridade.
-  - Utilidades (util.* e clear_screen.*): leitura segura, timestamps, console UTF‑8 (Windows) e UI básica.
-
-- Observação:
-  - A fila simples (queue.*) e lista (patient_list.*) permanecem no repositório por compatibilidade e referência, mas o main usa patient_tree + priority_queue como implementação padrão (a versão "retrô" está presente em codigo/postinhoSUS/zipFinal_projeto1).
-
-## Conformidade com C99
-
-- Objetivo do projeto: código compatível com C99 e pedantic.
-- Build padrão do Makefile está em C11 por conveniência. Para verificação C99:
-  - gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
-- Pontos de atenção:
-  - Comentários // são aceitos no C99.
-  - Funções util_* substituem strnlen/strdup para evitar dependências fora do C99.
-  - Thread‑safety: util_localtime usa cópia a partir de localtime() mantendo portabilidade C99.
-
-## Verificação local (C99)
-
-- Consulte `C99_REPORT.txt` para comandos e dicas de diagnóstico.
-- Compilar sem link para inspecionar warnings:
-  - gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
-- Opcional: pedantic strict
-  - gcc -std=c99 -pedantic-errors -Wall -Wextra -I. -c *.c
-- Em caso de erros:
-  - Verifique includes (stdbool.h, stddef.h, string.h, time.h).
-  - Revise conversões de tamanho (size_t ↔ int) e casts em snprintf/printf.
-- Dica rápida (sem linkagem, apenas checagem pedantic):
-  - gcc -std=c99 -pedantic -Wall -Wextra -I. -c *.c
-
-## Testes/validação rápida
-
-- Fluxo recomendado:
-  1. Carregar dados com io_load e confirmar impressão correta de acentos.
-  2. Registrar paciente com prioridade, adicionar procedimentos com timestamp, salvar e reiniciar.
-  3. Testar chamada por prioridade e verificar ordem por prioridade e chegada (seq).
-- Diagnóstico:
-  - Inspecionar data.bin com type/cat e validar layout textual conforme io.h.
-  - Se UTF‑8 quebrado, confirmar normalização automática no io_load ou converter com iconv.
-
-## Dependências
-
-- Compilador C (gcc ou clang) com suporte a C11 (Makefile) e opcionalmente C99 para verificação.
-- Ferramentas opcionais:
-  - make (para usar o Makefile)
-  - PowerShell ou Git Bash (Windows) para comandos de encoding e execução
-  - iconv (opcional) para conversão de dados CP1252→UTF‑8
-
 ## Notas finais
 
-- Este README reflete a arquitetura com árvore AVL e fila de prioridade usadas por main.c atualmente.
-- Módulos anteriores (patient_list/queue) ficam como referência e podem ser reutilizados se necessário ajustando main.c e io.*.
 - Documentação do formato e comportamentos de I/O está em `io.h` e implementação em `io.c`.
 - Se desejar, pode-se estender `io_save` com backups rotativos, compressão ou encriptação — atualizar README e `io.h` se isso for implementado.
 - Contribuições são bem-vindas. Abra issues ou pull requests com melhorias, correções de bugs ou documentação adicional.
 
-## Notas adicionais
+## Notas adicionais (adicionadas)
 
 - Ficheiro sample `data.bin` incluído:
   - O `data.bin` presente no repositório é um exemplo de ficheiro de persistência com entradas de teste (nomes com acentos, históricos e fila).
