@@ -133,7 +133,7 @@ void print_utf8(const char *s) {
 #endif
 }
 
-/* printf que aceita formato e argumentos, produz UTF-8 corretamente no Windows */
+/* printf que aceita formato e argumentos, produz UTF-8 corretamente no Windows e/ou Linux */
 int util_printf(const char *fmt, ...) {
     if (!fmt) return 0;
     int ret = 0;

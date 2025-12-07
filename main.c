@@ -113,13 +113,13 @@ static void show_patient_and_history_cb(const char *id, const char *name, bool c
 
     int hsz = ptree_history_size_by_id(pt, id);
     if (hsz > 0) {
-        util_printf("\nHistorico de %s (ID %s): %d item(ns)\n", name, id, hsz);
+        util_printf("\nHistórico de %s (ID %s): %d item(ns)\n", name, id, hsz);
 
         for (int hi = 0; hi < hsz; ++hi) {
             char hline[PROC_MAX_LEN + 1];
 
             if (ptree_history_get_by_id(pt, id, hi, hline, sizeof(hline)) == 0)
-                util_printf("  %d) %s\n", hi + 1, hline);
+                util_printf("  %d) %s\n", hi + 1, hline);
         }
 
         util_printf("\n");
@@ -130,7 +130,7 @@ static void show_patient_and_history_cb(const char *id, const char *name, bool c
 static void list_cb(const char *id, const char *name, bool called, void *ud) {
     PatientTree *pt = (PatientTree*)ud;
     int pri = ptree_get_priority(pt, id);
-    util_printf("- ID: %s | Nome: %s | Chamado: %s | Prioridade: P%d\n", id, name, called ? "SIM" : "NAO", pri);
+    util_printf("- ID: %s | Nome: %s | Chamado: %s | Prioridade: P%d\n", id, name, called ? "SIM" : "NÃO", pri);
 }
 
 /* Helpers locais para melhorar legibilidade */
@@ -143,7 +143,7 @@ static void show_menu(void) {
     util_printf("2. Remover paciente\n");
     util_printf("3. Listar pacientes\n");
     util_printf("4. Buscar paciente por ID\n");
-    util_printf("5. Chamar proximo paciente (por prioridade)\n");
+    util_printf("5. Chamar próximo paciente (por prioridade)\n");
     util_printf("6. Mostrar fila de espera\n");
     util_printf("7. Dar alta ao paciente\n");
     util_printf("8. Sair\n");
@@ -212,7 +212,7 @@ static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
     }
 
     /* Mensagem de boas-vindas simples (sem limpar novamente de forma imediata) */
-    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestao (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
+    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
 /* Funcao principal do programa simplificada:
@@ -352,7 +352,7 @@ int main(){
 
                                 /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
                                 char proc[PROC_MAX_LEN + 1];
-                                printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN);
+                                util_printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN); /* util_printf para acentos */
                                 read_line(proc, sizeof(proc));
 
                                 if (read_line_truncated()) {
@@ -415,7 +415,7 @@ int main(){
                             if (ptree_history_push(pt, id, item) == 0)
                                 util_printf("Procedimento adicionado.\n");
                             else
-                                util_printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
+                                util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
                         }
                         message_and_clear("Paciente reinserido na fila!", MSG_WAIT_SHORT);
                         reinInserted = 1; /* já reinserido, pular cadastro */
@@ -467,10 +467,9 @@ int main(){
             }
 
             if (pqueue_is_full(q))
-                util_printf("Fila cheia. Nao foi possivel inserir.\n");
-
+                util_printf("Fila cheia. Não foi possível inserir.\n");
             else if (pqueue_contains(q, id))
-                util_printf("Paciente ja esta na fila de espera.\n");
+                util_printf("Paciente já está na fila de espera.\n");
             else {
                 int pri;
 
@@ -491,7 +490,7 @@ int main(){
                     for(;;) {
                             /* lê descrição com validações e prefixa timestamp via util::format_timestamp*/
                             char proc[PROC_MAX_LEN + 1];
-                            printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN); /* prompt pode ficar em printf ASCII */
+                            util_printf("Razão da urgência (ate %d chars): ", PROC_MAX_LEN); /* util_printf para acentos */
                             read_line(proc, sizeof(proc));
 
                             if (read_line_truncated()) {
@@ -552,7 +551,7 @@ int main(){
                         util_printf("Procedimento adicionado.\n");
 
                     else
-                        util_printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
+                        util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
                 }
 
                 util_printf("Paciente inserido na fila.\n");
@@ -564,7 +563,7 @@ int main(){
         
         else if (opc == 2) { // Remover paciente. Para o trabalho, foi escolhido um cenário ideal em que o paciente só morreria, caso não estivesse na fila.
             char id[MAX_ID_LEN + 1];
-            util_printf("ID do paciente a remover (obito): ");
+            util_printf("ID do paciente a remover (óbito): ");
             read_line(id, sizeof(id));
 
             /* trim de espaços (evita falha por espaços acidentais) */
@@ -626,7 +625,7 @@ int main(){
                 message_and_clear("Obito registrado e dados removidos (LGPD). Retornando ao menu...", MSG_WAIT_MEDIUM);
 
             else {
-                util_printf("Falha ao remover registro do paciente. codigo=%d\n", rem_rc);
+                util_printf("Falha ao remover registro do paciente. código = %d\n", rem_rc);
                 message_and_clear("Falha ao remover registro do paciente. Retornando ao menu...", MSG_WAIT_MEDIUM);
             }
 
@@ -673,7 +672,7 @@ int main(){
                 strncpy(name, "(desconhecido)", sizeof(name));
 
             int called = ptree_is_called(pt, id);
-            util_printf("ID: %s | Nome: %s | Chamado: %s\n", id, name, called ? "SIM" : "NAO");
+            util_printf("ID: %s | Nome: %s | Chamado: %s\n", id, name, called ? "SIM" : "NÃO");
 
             /* menu interno de acoes sobre o paciente */
             for (;;) {
@@ -757,7 +756,7 @@ int main(){
                         util_printf("Procedimento adicionado.\n");
 
                     else
-                        util_printf("Falha ao adicionar procedimento (historico cheio ou erro).\n");
+                        util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
 
                     message_and_clear("Operacao concluida. Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
@@ -767,10 +766,10 @@ int main(){
                     char out[PROC_MAX_LEN + 1];
 
                     if (ptree_history_pop(pt, id, out, sizeof(out)) == 0)
-                        util_printf("Procedimento desfeito (ultimo): %s\n", out);
+                        util_printf("Procedimento desfeito (último): %s\n", out);
                         
                     else
-                        util_printf("Nao ha procedimento a desfazer\n");
+                        util_printf("Não há procedimento a desfazer\n");
 
                     message_and_clear("Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
@@ -778,7 +777,7 @@ int main(){
                 
                 else if (sub == 3) { /* Mostrar historico completo */
                     int n = ptree_history_size_by_id(pt, id);
-                    util_printf("Historico de %s (ID %s): %d item(ns)\n", name, id, n);
+                    util_printf("Histórico de %s (ID %s): %d item(ns)\n", name, id, n);
 
                     for (int i = 0; i < n; ++i) {
                         char item[PROC_MAX_LEN + 1];
@@ -915,7 +914,7 @@ int main(){
                 message_and_clear("Paciente recebeu alta e foi removido do registro. Retornando ao menu...", MSG_WAIT_MEDIUM);
             
             else {
-                util_printf("Falha ao dar alta ao paciente. codigo=%d\n", rem_rc);
+                util_printf("Falha ao dar alta ao paciente. código = %d\n", rem_rc);
                 message_and_clear("Falha ao dar alta. Retornando ao menu...", MSG_WAIT_MEDIUM);
             }
 
@@ -933,14 +932,13 @@ int main(){
 
             if (n_pat > 0 || qsize > 0 || load_r == 0) {
                 if (io_save(DATA_FILE, pt, q) == 0)
-                    util_printf("Dados salvos em %s. Ate breve.\n", DATA_FILE);
-                    
+                    util_printf("Dados salvos em %s. Até breve.\n", DATA_FILE);
                 else
                     util_printf("Erro ao salvar dados.\n");
             } 
             
             else
-                util_printf("Nenhum dado para salvar. Arquivo nao foi alterado.\n");
+                util_printf("Nenhum dado para salvar. Arquivo não foi alterado.\n");
 
             break;
 
