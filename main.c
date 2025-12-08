@@ -16,8 +16,8 @@ Módulos utilizados:
 - clear_screen.h: utilidades de UI (limpar tela e mensagens temporizadas).
 
 Estruturas usadas em runtime (alocadas dinamicamente):
-- PatientTree *pt;      // árvore AVL de pacientes
-- PriorityQueue *q;     // fila de prioridades (1..5)
+- PatientTree *pt; // árvore AVL de pacientes
+- PriorityQueue *q; // fila de prioridades (1..5)
 
 Fluxo principal (main):
 1. Inicialização:
@@ -113,6 +113,8 @@ Observações de integração:
 #include <windows.h>
 #endif
 
+/* Helpers locais para melhorar legibilidade */
+
 /* callback usado por show_archive_data para imprimir paciente + historico */
 static void show_patient_and_history_cb(const char *id, const char *name, bool called, void *ud) {
     (void)called;
@@ -120,6 +122,7 @@ static void show_patient_and_history_cb(const char *id, const char *name, bool c
     util_printf(" - %s: %s\n", id, name);
 
     int hsz = ptree_history_size_by_id(pt, id);
+    
     if (hsz > 0) {
         util_printf("\nHistórico de %s (ID %s): %d item(ns)\n", name, id, hsz);
 
@@ -132,16 +135,19 @@ static void show_patient_and_history_cb(const char *id, const char *name, bool c
 
         util_printf("\n");
     }
+    
+    else {
+        /* indica explicitamente que o histórico está vazio */
+        util_printf("   (histórico vazio)\n\n");
+    }
 }
 
-/* callback C puro para listar pacientes */
+/* callback C puro para listar pacientes
 static void list_cb(const char *id, const char *name, bool called, void *ud) {
     PatientTree *pt = (PatientTree*)ud;
     int pri = ptree_get_priority(pt, id);
     util_printf("- ID: %s | Nome: %s | Chamado: %s | Prioridade: P%d\n", id, name, called ? "SIM" : "NÃO", pri);
-}
-
-/* Helpers locais para melhorar legibilidade */
+} */
 
 /* Imprime o menu principal no terminal (sem lógica de leitura)
    Esta função só apresenta as opções disponíveis para o usuário */
@@ -161,39 +167,14 @@ static void show_menu(void) {
 /* Mostra informações carregadas do ficheiro de dados:
    - árvore de pacientes (resumo)
    - históricos por paciente
-   - fila de espera com nomes resolvidos via PatientTree
    Em caso de erro no carregamento, informa o usuário e inicializa vazio */
-static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
+static void show_archive_data(PatientTree *pt, int load_r) {
     /* Tenta carregar dados persistidos (se existir) */
     if (load_r == 0) {
         /* Mostra resumidamente o estado carregado para o utilizador antes de limpar, mostra resumidamente o estado carregado para o utilizador antes de limpar */
         util_printf("Dados carregados a partir de %s.\n\n", DATA_FILE);
-
-        /* imprime cada paciente (em ordem) e seus historicos via callback */
+        /* Lista somente pacientes e histórico */
         ptree_inorder(pt, show_patient_and_history_cb, pt);
-
-        if (pqueue_size(q) > 0) {
-            util_printf("Fila de espera:\n");
-            int qsz = pqueue_size(q);
-
-            for (int qi = 0; qi < qsz; ++qi) {
-                char qid[MAX_ID_LEN + 1];
-                char qname[MAX_NAME_LEN + 1];
-                int prio = 0;
-
-                if (pqueue_get_id_by_index(q, qi, qid, sizeof(qid)) != 0) 
-                    continue;
-
-                if (ptree_get_name(pt, qid, qname, sizeof(qname)) != 0)
-                    strncpy(qname, "(desconhecido)", sizeof(qname));
-
-                (void)pqueue_get_priority_by_index(q, qi, &prio);
-                util_printf("%d: %s - %s (P%d)\n", qi + 1, qid, qname, prio);
-            }
-        } 
-        
-        else
-            util_printf("\nFila de espera vazia.\n");
 
         /* Em vez de limpar automaticamente, aguarda que o utilizador pressione Enter
            para garantir que as impressões permaneçam visíveis. */
@@ -216,11 +197,8 @@ static void show_archive_data(PatientTree *pt, PriorityQueue *q, int load_r) {
     
     else {
         /* erro ao carregar dados (formato/IO) */
-        message_and_clear("Iniciando com banco vazio.", MSG_WAIT_SHORT);
+        message_and_clear("Erro ao carregar os dados. Considerar o banco vazio.", MSG_WAIT_SHORT);
     }
-
-    /* Mensagem de boas-vindas simples (sem limpar novamente de forma imediata) */
-    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 }
 
 /* Funcao principal do programa simplificada:
@@ -247,7 +225,9 @@ int main(){
     /* Carrega diretamente na árvore (antes carregávamos numa PatientList e convertíamos) */
     int load_r = io_load(DATA_FILE, pt, q);
     /* show_archive_data agora aceita a árvore (comparativo com antigo uso de PatientList permanece em comentários) */
-    show_archive_data(pt, q, load_r);
+
+    /* Mensagem de boas-vindas antes de iniciar o loop do menu */
+    message_and_clear("Bem-vindo ao PostinhoSUS - Sistema de Gestão (Projeto AED, ICMC 2025).", MSG_WAIT_SHORT);
 
     int opc = 0;
     char buf[256];
@@ -315,7 +295,7 @@ int main(){
                     continue;
                 }
 
-                /* Se o ID já está cadastrado (antigo: plist_find_index/plist_*), agora usamos ptree_exists, mas ainda oferecer reinsercao na fila:
+                /* Se o ID já está cadastrado (antigo: plist_find_index/plist_*), agora usamos ptree_exists, mas ainda oferecer reinserção na fila:
                    - se já estiver na fila, avisa e retorna ao menu
                    - se a fila já estiver cheia, avisa e retorna ao menu
                    - senao, enfileira e informa "paciente reinserido na fila!" */
@@ -435,6 +415,9 @@ int main(){
                             }
 
                             message_and_clear("Paciente reinserido na fila apos alta.", MSG_WAIT_SHORT);
+
+                            /* persistência imediata após reinserção */
+                            (void)io_save(DATA_FILE, pt, q);
                             reinInserted = 1; // ja reinserido, pular cadasatro
                             break;
                         } 
@@ -579,13 +562,16 @@ int main(){
                 }
 
                 util_printf("Paciente inserido na fila.\n");
+
+                /* persistência imediata após cadastro/entrada na fila */
+                (void)io_save(DATA_FILE, pt, q);
             }
 
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_SHORT);
 
         } 
         
-        else if (opc == 2) { // Remover paciente. Para o trabalho, foi escolhido um cenário ideal em que o paciente só morreria, caso não estivesse na fila.
+        else if (opc == 2) { // Remover paciente (óbito). Para o trabalho, foi escolhido um cenário ideal em que o paciente só morreria, caso não estivesse na fila.
             char id[MAX_ID_LEN + 1];
             util_printf("ID do paciente a remover (óbito): ");
             read_line(id, sizeof(id));
@@ -653,27 +639,50 @@ int main(){
                 message_and_clear("Falha ao remover registro do paciente. Retornando ao menu...", MSG_WAIT_MEDIUM);
             }
 
+            /* persistência imediata após remoção/óbito (mesmo em falha não altera estado, salvar só em sucesso) */
+            if (rem_rc == 0) (void)io_save(DATA_FILE, pt, q);
             message_and_clear("Operacao concluida. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } 
         
-        else if (opc == 3) { // Listar pacientes
-            /* Listar pacientes: percorre a árvore e imprime resumo (id | nome | chamados?) */
-            util_printf("Lista de pacientes registrados (ordenada por ID):\n");
+        else if (opc == 3) { // Listar pacientes (snapshot atual de DATA_FILE)
+            /* Mostra o que está gravado AGORA em DATA_FILE:
+               cria estruturas temporárias, carrega e exibe apenas pacientes + histórico. */
+            PatientTree *pt_tmp = ptree_create();
+            PriorityQueue *q_tmp = pqueue_create(WAIT_CAP); /* apenas para io_load; não exibimos a fila */
 
-            /* Uso de callback C puro */
-            ptree_inorder(pt, list_cb, pt);
+            if (!pt_tmp || !q_tmp) {
+                if (pt_tmp) 
+                    ptree_destroy(pt_tmp);
 
-            {
-                char __tmp_wait[8];
-                util_printf("\nPressione Enter para retornar ao menu");
-                fflush(stdout);
-                read_line(__tmp_wait, sizeof(__tmp_wait));
-                clear_screen();
+                if (q_tmp) 
+                    pqueue_destroy(q_tmp);
+                
+                message_and_clear("Falha ao alocar estruturas temporarias.", MSG_WAIT_SHORT);
+
+                /* fallback: lista estado atual em memória (somente pacientes e histórico) */
+                util_printf("Pacientes registrados (ordenados por ID) e histórico:\n");
+                ptree_inorder(pt, show_patient_and_history_cb, pt);
+                {
+                    char __tmp_wait[8];
+                    util_printf("\nPressione Enter para retornar ao menu");
+                    fflush(stdout);
+                    read_line(__tmp_wait, sizeof(__tmp_wait));
+                    clear_screen();
+                }
+                
+                continue;
             }
+
+            int lr_now = io_load(DATA_FILE, pt_tmp, q_tmp);
+            show_archive_data(pt_tmp, lr_now);
+
+            ptree_destroy(pt_tmp);
+            pqueue_destroy(q_tmp);
+            /* show_archive_data já aguarda Enter e limpa a tela; voltar ao menu */
         } 
         
-        else if (opc == 4) { // Buscar paciente por ID
+        else if (opc == 4) { // Buscar paciente por ID (submenu)
             /* Abre-se um submenu com operacoes relacionadas:
                - 1: Adicionar procedimento
                - 2: Desfazer ultimo procedimento
@@ -794,7 +803,9 @@ int main(){
 
                     else
                         util_printf("Falha ao adicionar procedimento (histórico cheio ou erro).\n");
-
+                        
+                    /* salvar alteração de histórico imediatamente */
+                    (void)io_save(DATA_FILE, pt, q);
                     message_and_clear("Operacao concluida. Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
                 } 
@@ -807,7 +818,9 @@ int main(){
                         
                     else
                         util_printf("Não há procedimento a desfazer\n");
-
+                    
+                    /* salvar alteração de histórico imediatamente */
+                    (void)io_save(DATA_FILE, pt, q);
                     message_and_clear("Retornando ao submenu...", MSG_WAIT_MEDIUM);
 
                 } 
@@ -860,6 +873,9 @@ int main(){
 
                 (void)ptree_set_called(pt, id, true);
                 util_printf("Chamando: %s - %s\n", id, name);
+                
+                /* salvar estado de fila e flag 'called' */
+                (void)io_save(DATA_FILE, pt, q);
                 message_and_clear("Paciente chamado. Retornando ao menu...", MSG_WAIT_SHORT);
             } 
             
@@ -972,6 +988,9 @@ int main(){
 
             (void)ptree_set_called(pt, id, false);
             (void)ptree_set_discharged(pt, id, true); /* marcar alta persistente */
+            
+            /* salvar estado após alta */
+            (void)io_save(DATA_FILE, pt, q);
             message_and_clear("Alta concedida. Registro mantido. Retornando ao menu...", MSG_WAIT_MEDIUM);
 
         } 
