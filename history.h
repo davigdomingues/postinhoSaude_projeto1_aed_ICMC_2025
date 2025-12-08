@@ -62,7 +62,10 @@ void history_inspect(History *h);
 int history_get_by_index(const History *h, int idx, char *out, size_t out_size);
 
 /* Ciclo de vida do TAD History. */
+/* Cria histórico com capacidade vinda da configuração dinâmica. */
 History *history_create(void);
+/* Cria histórico com capacidade explícita (>=1). */
+History *history_create_with_cap(int cap);
 void      history_destroy(History *h);
 
 #endif
