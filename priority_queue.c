@@ -2,6 +2,7 @@
 #include <string.h>
 #include "priority_queue.h"
 #include "util.h"
+#include "config.h"
 
 /* Implementação de PriorityQueue:
  * - Heap binário com critério: menor prioridade primeiro; em empate, menor seq (mais antigo).
@@ -197,7 +198,14 @@ static void heap_down(struct PriorityQueue *pq, int idx) {
 
 /* Cria a fila de prioridade com capacidade fixa; inicializa heap e conjunto de membros */
 PriorityQueue *pqueue_create(int cap) {
-    if (cap <= 0 || cap > WAIT_CAP) return NULL;
+    /* Permite capacidade dinâmica; padrão para capacidade de espera configurada em tempo de execução se inválido */
+    int max_cap = config_get_wait_cap();
+
+    if (cap <= 0) 
+        cap = max_cap;
+
+    if (cap > max_cap) 
+        return NULL;
 
     PriorityQueue *pq = (PriorityQueue*)malloc(sizeof(*pq));
     if (!pq) return NULL;
@@ -322,12 +330,18 @@ int pqueue_get_id_by_index(const PriorityQueue *pq, int index, char *out, size_t
     if (index < 0 || index >= pq->size) 
         return -1;
 
-    struct PQNode tmp[WAIT_CAP];
-    build_sorted(pq, tmp, pq->size);
+    /* Aloca buffer snapshot dimensionado para o tamanho atual da fila */
+    int n = pq->size;
+    struct PQNode *tmp = (struct PQNode *)malloc(sizeof(struct PQNode) * (size_t)n);
+    
+    if (!tmp) 
+        return -1;
 
+    build_sorted(pq, tmp, n);
     strncpy(out, tmp[index].id, out_size - 1);
     out[out_size - 1] = '\0';
 
+    free(tmp);
     return 0;
 }
 
@@ -339,9 +353,14 @@ int pqueue_get_priority_by_index(const PriorityQueue *pq, int index, int *out_pr
     if (index < 0 || index >= pq->size) 
         return -1;
 
-    struct PQNode tmp[WAIT_CAP];
-    build_sorted(pq, tmp, pq->size);
+    int n = pq->size;
+    struct PQNode *tmp = (struct PQNode *)malloc(sizeof(struct PQNode) * (size_t)n);
+    
+    if (!tmp) 
+        return -1;
 
+    build_sorted(pq, tmp, n);
     *out_priority = tmp[index].priority;
+    free(tmp);
     return 0;
 }
