@@ -47,4 +47,11 @@ size_t util_strnlen(const char *s, size_t maxlen);
 /* Duplicador de string compatível com C99 (substitui strdup) */
 char *util_strdup(const char *s);
 
+/* Capacidades dinâmicas — API está declarada em config.h e implementada em util.c:
+ * - Use config_set_hist_max(...) e config_set_wait_cap(...) antes de criar History/PriorityQueue.
+ * - Os valores definidos são aplicados somente em novas instâncias criadas após a chamada.
+ * - Se não configurar, os padrões das macros HIST_MAX/WAIT_CAP serão usados.
+ */
+// veja config_set_hist_max/config_set_wait_cap em config.h
+
 #endif

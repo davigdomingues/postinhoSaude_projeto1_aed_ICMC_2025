@@ -1,4 +1,5 @@
 #include "util.h"
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -39,6 +40,15 @@
 
 // Flag interna usada por read_line para indicar se a última leitura foi truncada.
 static int last_truncated = 0;
+
+/* Capacidades configuráveis em tempo de execução:
+ * - g_hist_max e g_wait_cap iniciam com os valores das macros (HIST_MAX/WAIT_CAP).
+ * - Setters (config_set_*): aceitam valores > 0 e atualizam os limites para novas criações.
+ * - Getters (config_get_*): retornam o valor correntemente configurado; se inválido, caem no padrão.
+ * - Importante: estruturas já alocadas (History/PriorityQueue) não são redimensionadas retroativamente.
+ */
+static int g_hist_max = HIST_MAX;
+static int g_wait_cap = WAIT_CAP;
 
 /* Comprimento de string limitado compatível com C99 (substitui strnlen) */
 size_t util_strnlen(const char *s, size_t maxlen) {
@@ -274,4 +284,20 @@ void util_setup_locale(void) {
         }
     }
 #endif
+}
+
+void config_set_hist_max(int cap) {
+    if (cap > 0) g_hist_max = cap;
+}
+
+int config_get_hist_max(void) {
+    return (g_hist_max > 0) ? g_hist_max : HIST_MAX;
+}
+
+void config_set_wait_cap(int cap) {
+    if (cap > 0) g_wait_cap = cap;
+}
+
+int config_get_wait_cap(void) {
+    return (g_wait_cap > 0) ? g_wait_cap : WAIT_CAP;
 }
