@@ -8,6 +8,11 @@
  * - Armazena pacientes por ID com operações O(log n) (inserir, remover, buscar).
  * - Cada paciente contém: id, nome, histórico (History*), flags (called, discharged) e prioridade (1..5).
  * - Wrappers expõem manipulação de histórico associado.
+ *
+ * Nota sobre histórico dinâmico:
+ * - Ao inserir um novo paciente, o histórico (History*) é criado usando
+ *   a capacidade corrente de config_get_hist_max() no momento da criação.
+ * - Alterações subsequentes via config_set_hist_max() não redimensionam históricos já existentes.
  */
 
 typedef struct PatientNode PatientNode;

@@ -44,6 +44,40 @@ Arquivos principais (esperados neste diretório):
 - clear_screen.h/c    — utilidades de UI (limpar tela e mensagens temporizadas).
 - proj1VersaoAtualizada.pdf, projeto2.pdf — especificações do projeto (subdivido em duas partes).
 
+## Capacidades dinâmicas (HIST_MAX e WAIT_CAP)
+
+O projeto agora permite ajustar dinamicamente:
+
+- Capacidade do histórico por paciente (HIST_MAX).
+- Capacidade da fila de espera (WAIT_CAP).
+
+API:
+
+- config_set_hist_max(int cap): define a capacidade padrão para novos históricos criados (history_create).
+- config_set_wait_cap(int cap): define a capacidade padrão para novas filas de prioridade criadas (pqueue_create).
+- config_get_hist_max(), config_get_wait_cap(): retornam os valores correntes (ou os padrões das macros, se não configurados).
+
+Importante:
+
+- As alterações de capacidade se aplicam no momento da criação das estruturas. Instâncias já existentes não são redimensionadas retroativamente.
+- As macros HIST_MAX/WAIT_CAP continuam sendo os padrões de compilação.
+
+Exemplo de uso (antes de criar estruturas no main):
+
+```c
+config_set_hist_max(20); // históricos novos terão cap=20
+config_set_wait_cap(100); // novas filas terão cap=100
+PriorityQueue *q = pqueue_create(config_get_wait_cap());
+PatientTree *pt = ptree_create(); // históricos internos usam config_get_hist_max()
+```
+
+### Impactos nos módulos
+
+- history.*: capacidade da pilha passa a ser dinâmica; history_create usa config_get_hist_max() por padrão, e existe history_create_with_cap(cap).
+- priority_queue.*: pqueue_create(cap) aceita cap <= 0, usando config_get_wait_cap() como padrão; snapshots de acesso por índice usam alocação dinâmica (sem array estático).
+- main.c: usa pqueue_create(config_get_wait_cap()) na inicialização.
+- config.h/util.c: definem e implementam setters/getters de capacidade dinâmica.
+
 ## Persistência (DATA_FILE)
 
 - Ficheiro usado: definido em `config.h` como `DATA_FILE` (padrão: `bin/data.bin`).
@@ -64,7 +98,8 @@ Arquivos principais (esperados neste diretório):
   4. para cada item da fila:
      - id (linha)
      - priority (int) — novo campo; em ficheiros antigos pode estar ausente e assume 5
-- Observação: comprimentos das strings obedecem a `MAX_ID_LEN`, `MAX_NAME_LEN`, `PROC_MAX_LEN` em `config.h`. A especificação detalhada e regras de leitura estão em `io.h`.
+- Nota sobre capacidades:
+- As capacidades (histórico/fila) não são persistidas no ficheiro; são políticas de runtime. Ao alterar com config_set_* afetará apenas estruturas criadas após a alteração na execução atual.
 
 ## Compilação
 
@@ -158,6 +193,11 @@ Observação importante: o projeto normaliza textos lidos do ficheiro de dados p
 - Saída UTF‑8 robusta no Windows
   - util.c / util.h: adicionadas util_printf() e print_utf8() que, no Windows, convertem UTF‑8→UTF‑16 e usam WriteConsoleW. Substituídos prints que exibem dados persistidos por util_printf para garantir exibição correta em PowerShell.
   - Motivo: garantir que printf mostre acentuação corretamente no conhost/PowerShell.
+
+- Capacidades dinâmicas:
+  - history.c: buffer de histórico alocado conforme capacidade dinâmica; APIs mantidas.
+  - priority_queue.c: criação respeita config_get_wait_cap(); snapshots usam malloc conforme tamanho atual da fila.
+  - config.h/util.c: adicionados setters/getters para HIST_MAX e WAIT_CAP com documentação.
 
 - Otimizações de desempenho
   - patient_tree.c: implementação de árvore AVL para operações O(log n), priorizando a busca de pacientes.

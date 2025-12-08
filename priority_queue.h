@@ -10,6 +10,15 @@ typedef struct PriorityQueue PriorityQueue;
  * - Desempate por ordem de chegada (seq mais antigo primeiro).
  * - Acesso por índice retorna snapshot ordenado (não modifica o heap).
  * - io.c persiste itens da fila com prioridades.
+ *
+ * Capacidade dinâmica:
+ * - pqueue_create(cap): se cap <= 0, usa config_get_wait_cap() (padrão = WAIT_CAP).
+ * - Se cap > config_get_wait_cap(), a criação falha (NULL).
+ * - Alterações via config_set_wait_cap() impactam apenas filas criadas após a alteração.
+ *
+ * Snapshot ordenado:
+ * - pqueue_get_*_by_index aloca buffer temporário dimensionado para o tamanho atual da fila
+ *   (não usa arrays estáticos), não modifica o heap interno.
  */
 
 /* Enfileira um paciente com prioridade.
