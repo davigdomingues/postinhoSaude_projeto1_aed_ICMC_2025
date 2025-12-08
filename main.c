@@ -87,6 +87,11 @@ Observações de integração:
   * io_save escreve para um ficheiro temporário e só renomeia para DATA_FILE em sucesso (comportamento atômico simples).
   * main.c evita sobrescrever DATA_FILE quando a carga inicial falha e não houve alterações na sessão.
 - UI: main.c usa message_and_clear/clear_screen e faz pausa explícita (read_line) após mostrar dados carregados para permitir leitura pelo usuário.
+
+Inicialização dinâmica de capacidades:
+- A fila de espera é criada usando config_get_wait_cap(), permitindo ajustar a capacidade em runtime
+  através de config_set_wait_cap() antes da criação. Históricos de pacientes usam config_get_hist_max()
+  internamente (em history_create), também ajustável via config_set_hist_max().
 */
 
 #define _XOPEN_SOURCE 600
@@ -215,7 +220,8 @@ int main(){
 
     /* Usamos a árvore diretamente em runtime */
     PatientTree *pt = ptree_create();
-    PriorityQueue *q  = pqueue_create(WAIT_CAP);
+    /* Usa capacidade de espera configurada em tempo de execução */
+    PriorityQueue *q  = pqueue_create(config_get_wait_cap());
     
     if (!pt || !q) {
         fprintf(stderr, "Erro de inicializacao.\n");
