@@ -30,11 +30,11 @@ typedef struct Patient {
 } Patient;
 
 /* Nó AVL: contém dados + filhos + altura para balanceamento. */
-typedef struct PatientNode {
+struct PatientNode {
     Patient data;
     struct PatientNode *left, *right;
     int height;
-} PatientNode;
+};
 
 /* TAD opaca PatientTree: definição interna */
 struct PatientTree {
